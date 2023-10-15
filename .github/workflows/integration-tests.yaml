@@ -52,5 +52,5 @@ jobs:
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy
-          sudo snap logs aproxy.aproxy | grep -Fxq "example.com:80"
-          sudo snap logs aproxy.aproxy | grep -Fxq "example.com:443"
+          sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
+          sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
