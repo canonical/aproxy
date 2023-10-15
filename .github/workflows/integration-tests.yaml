@@ -22,7 +22,6 @@ jobs:
 
       - name: Configure Aproxy
         run: |
-          sudo sed -i '/proxy/Id' /etc/environment
           sudo snap set aproxy proxy=squid.internal:3128
           sudo nft -f - << EOF
           define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
@@ -44,11 +43,11 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl http://example.com -v
+          curl --noproxy "*" http://example.com -v
 
       - name: Test HTTPS
         run: |
-          curl https://example.com -v
+          curl --noproxy "*" https://example.com -v
 
       - name: Test Access Logs
         run: |
