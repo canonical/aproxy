@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+mkdir -p $SNAP_COMMON/cert
+
+
+validate_proxy() {
+    local hostport="$1"
+    local host
+    local port
+
+    host="${hostport%:*}"
+    port="${hostport#*:}"
+
+    if [[ ! "$host" =~ ^[a-zA-Z0-9.-]+$ ]]; then
+        echo "invalid proxy: '$hostport'"
+        return 1
+    fi
+
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port <= 0 || port > 65535 )); then
+        echo "invalid proxy: '$hostport'"
+        return 1
+    fi
+
+    return 0
+}
+
+
+proxy="$(snapctl get proxy)"
+
+if [ -z "${proxy}" ]; then
+    echo "set upstream proxy using \`snap set aproxy proxy=example:1234\`"
+    exit 0
+fi
+
+validate_proxy "$proxy"
+
+echo "--proxy $proxy" > $SNAP_DATA/args
+
+snapctl stop ${SNAP_NAME}.aproxy
+snapctl start ${SNAP_NAME}.aproxy --enable

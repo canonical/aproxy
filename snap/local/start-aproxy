@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eo pipefail
+
+eval "exec aproxy $(cat $SNAP_DATA/args)"
