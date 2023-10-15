@@ -1,0 +1,56 @@
+name: Integration Tests
+
+on:
+  pull_request:
+  workflow_call:
+
+jobs:
+  integration-test:
+    name: Run Integration Tests
+    runs-on: [ self-hosted, linux, x64, large ]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build Aproxy Snap
+        id: snapcraft-build
+        uses: snapcore/action-build@v1
+
+      - name: Install Aproxy Snap
+        run: |
+          sudo snap install --dangerous ${{ steps.snapcraft-build.outputs.snap }}
+
+      - name: Configure Aproxy
+        run: |
+          sudo snap set aproxy proxy=squid.internal:3128
+          sudo nft -f - << EOF
+          define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
+          define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
+          table ip aproxy
+          flush table ip aproxy
+          table ip aproxy {
+                  chain prerouting {
+                          type nat hook prerouting priority dstnat; policy accept;
+                          ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
+                  }
+
+                  chain output {
+                          type nat hook output priority -100; policy accept;
+                          ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
+                  }
+          }
+          EOF
+
+      - name: Test HTTP
+        run: |
+          curl --noproxy "*" http://example.com -svS -o /dev/null
+
+      - name: Test HTTPS
+        run: |
+          curl --noproxy "*" https://example.com -svS -o /dev/null
+
+      - name: Test Access Logs
+        run: |
+          sudo snap logs aproxy.aproxy
+          sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
+          sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"

@@ -10,7 +10,7 @@ requiring destination hostname for auditing or access control.
 Install aproxy using snap, and configure the upstream http proxy.
 
 ```bash
-sudo snap install aproxy
+sudo snap install aproxy --edge
 sudo snap set aproxy proxy=squid.internal:3128
 ```
 
