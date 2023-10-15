@@ -17,7 +17,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -297,28 +296,25 @@ func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 }
 
 func forward(conn, proxyConn net.Conn, logger *slog.Logger) {
-	var wg sync.WaitGroup
-	wg.Add(1)
 	// TODO: have something better to close the consigned connection when tunnel is closed or vice versa
 	var closed atomic.Bool
 	go func() {
-		_, err := io.Copy(conn, proxyConn)
-		logger.Debug("")
+		_, err := io.Copy(proxyConn, conn)
 		if err != nil && !closed.Load() {
-			logger.Error("failed to relay network traffic from proxy", "error", err)
+			logger.Error("failed to relay network traffic to proxy", "error", err)
 		}
 		closed.Store(true)
-		_ = conn.Close()
+		_ = proxyConn.Close()
 	}()
-	_, err := io.Copy(proxyConn, conn)
+	_, err := io.Copy(conn, proxyConn)
 	if err != nil && !closed.Load() {
-		logger.Error("failed to relay network traffic to proxy", "error", err)
+		logger.Error("failed to relay network traffic from proxy", "error", err)
 	}
 	closed.Store(true)
-	_ = proxyConn.Close()
 }
 
 func handleConn(c net.Conn, proxy *net.TCPAddr) {
+	defer c.Close()
 	logger := slog.With("src", c.RemoteAddr())
 	dst, err := GetOriginalDst(c.(*net.TCPConn))
 	if err != nil {
@@ -350,7 +346,7 @@ func handleConn(c net.Conn, proxy *net.TCPAddr) {
 	if err = conn.PrepareTunnel(tunnel); err != nil {
 		logger.Error("failed to create proxy tunnel", "error", err)
 	}
-	go forward(conn, tunnel, logger)
+	forward(conn, tunnel, logger)
 }
 
 func main() {
