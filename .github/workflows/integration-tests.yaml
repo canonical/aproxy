@@ -43,12 +43,14 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl --noproxy "*" http://example.com -v
+          curl --noproxy "*" http://example.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl --noproxy "*" https://example.com -v
+          curl --noproxy "*" https://example.com -svS -o /dev/null
 
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy
+          sudo snap logs aproxy.aproxy | grep -Fxq "example.com:80"
+          sudo snap logs aproxy.aproxy | grep -Fxq "example.com:443"
