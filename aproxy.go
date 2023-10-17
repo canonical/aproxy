@@ -357,6 +357,9 @@ func HandleConn(conn net.Conn, proxy string) {
 	case 80:
 		relay = RelayHttp
 		host, err = PrereadHttpHost(consigned)
+		if !strings.Contains(host, ":") {
+			host = fmt.Sprintf("%s:%d", host, dst.Port)
+		}
 		dialProxy = DialProxy
 	default:
 		logger.Error(fmt.Sprintf("unknown destination port: %d", dst.Port))
