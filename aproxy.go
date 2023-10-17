@@ -17,56 +17,102 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
 
-var version = "0.1.0"
+var version = "0.2.0"
 
-type ConsignedConn interface {
-	net.Conn
-	Host() (string, error)
-	PrepareTunnel(proxyConn net.Conn) error
+type PrereadConn struct {
+	prereadStarted bool
+	prereadEnded   bool
+	prereadBuf     []byte
+	mu             sync.Mutex
+	conn           net.Conn
 }
 
-type TlsConn struct {
-	net.Conn
-	DstAddr     *net.TCPAddr
-	clientHello []byte
+func (c *PrereadConn) StartPreread() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.prereadStarted {
+		panic("call StartPreread after preread has already started or ended")
+	}
+	c.prereadStarted = true
 }
 
-func (c *TlsConn) readClientHello() (_ []byte, err error) {
+func (c *PrereadConn) RestorePreread() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.prereadStarted || c.prereadEnded {
+		panic("call RestorePreread after preread has ended or hasn't started")
+	}
+	c.prereadEnded = true
+}
+
+func (c *PrereadConn) Read(p []byte) (n int, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.prereadEnded {
+		n = copy(p, c.prereadBuf)
+		bufLen := len(c.prereadBuf)
+		c.prereadBuf = c.prereadBuf[n:]
+		if n == len(p) || (bufLen > 0 && bufLen == n) {
+			return n, nil
+		}
+		rn, err := c.conn.Read(p[n:])
+		return rn + n, err
+	}
+	if c.prereadStarted {
+		n, err = c.conn.Read(p)
+		c.prereadBuf = append(c.prereadBuf, p[:n]...)
+		return n, err
+	}
+	return c.conn.Read(p)
+}
+
+func (c *PrereadConn) Write(p []byte) (n int, err error) {
+	return c.conn.Write(p)
+}
+
+func NewPrereadConn(conn net.Conn) *PrereadConn {
+	return &PrereadConn{conn: conn}
+}
+
+func PrereadSNI(conn *PrereadConn) (_ string, err error) {
+	conn.StartPreread()
+	defer conn.RestorePreread()
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("failed to read TLS client hello: %w", err)
+			err = fmt.Errorf("failed to preread TLS client hello: %w", err)
 		}
 	}()
 	typeVersionLen := make([]byte, 5)
-	n, err := c.Read(typeVersionLen)
+	n, err := conn.Read(typeVersionLen)
 	if n != 5 {
-		return nil, errors.New("too short")
+		return "", errors.New("too short")
 	}
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if typeVersionLen[0] != 22 {
-		return nil, errors.New("not a TCP handshake")
+		return "", errors.New("not a TCP handshake")
 	}
 	msgLen := binary.BigEndian.Uint16(typeVersionLen[3:])
 	buf := make([]byte, msgLen+5)
-	n, err = c.Read(buf[5:])
+	n, err = conn.Read(buf[5:])
 	if n != int(msgLen) {
-		return nil, errors.New("too short")
+		return "", errors.New("too short")
 	}
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	copy(buf[:5], typeVersionLen)
-	return buf, nil
+	return extractSNI(buf)
 }
 
-func (c *TlsConn) extractSNI(data []byte) (string, error) {
+func extractSNI(data []byte) (string, error) {
 	s := cryptobyte.String(data)
 	var version uint16
 	var random []byte
@@ -145,7 +191,43 @@ func (c *TlsConn) extractSNI(data []byte) (string, error) {
 	return finalServerName, nil
 }
 
-func (c *TlsConn) httpConnect(proxyConn net.Conn, dst string) error {
+func PrereadHttpHost(conn *PrereadConn) (_ string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("failed to preread HTTP request: %w", err)
+		}
+	}()
+
+	conn.StartPreread()
+	defer conn.RestorePreread()
+	req, err := http.ReadRequest(bufio.NewReader(conn))
+	if err != nil {
+		return "", err
+	}
+	host := req.Host
+	if host == "" {
+		return "", errors.New("http request doesn't have host")
+	}
+	return host, nil
+}
+
+func DialProxy(proxy string) (net.Conn, error) {
+	proxyAddr, err := net.ResolveTCPAddr("tcp", proxy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve proxy address: %w", err)
+	}
+	conn, err := net.DialTCP("tcp", nil, proxyAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to proxy: %w", err)
+	}
+	return conn, nil
+}
+
+func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
+	conn, err := DialProxy(proxy)
+	if err != nil {
+		return nil, err
+	}
 	request := http.Request{
 		Method: "CONNECT",
 		URL: &url.URL{
@@ -159,109 +241,18 @@ func (c *TlsConn) httpConnect(proxyConn net.Conn, dst string) error {
 		},
 		Host: dst,
 	}
-	err := request.Write(proxyConn)
+	err = request.Write(conn)
 	if err != nil {
-		return fmt.Errorf("failed to send connect request to http proxy: %w", err)
+		return nil, fmt.Errorf("failed to send connect request to http proxy: %w", err)
 	}
-	response, err := http.ReadResponse(bufio.NewReaderSize(proxyConn, 0), &request)
+	response, err := http.ReadResponse(bufio.NewReaderSize(conn, 0), &request)
 	if response.StatusCode != 200 {
-		return fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
+		return nil, fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to receive http connect response from proxy: %w", err)
+		return nil, fmt.Errorf("failed to receive http connect response from proxy: %w", err)
 	}
-	return nil
-}
-
-func (c *TlsConn) Host() (string, error) {
-	if c.clientHello == nil {
-		clientHello, err := c.readClientHello()
-		if err != nil {
-			return "", err
-		}
-		c.clientHello = clientHello
-	}
-	sni, err := c.extractSNI(c.clientHello)
-	return fmt.Sprintf("%s:%d", sni, c.DstAddr.Port), err
-}
-
-func (c *TlsConn) PrepareTunnel(proxyConn net.Conn) error {
-	host, err := c.Host()
-	if err != nil {
-		return err
-	}
-	if err = c.httpConnect(proxyConn, host); err != nil {
-		return err
-	}
-	if _, err = proxyConn.Write(c.clientHello); err != nil {
-		return fmt.Errorf("failed to send preread client hello to proxy: %w", err)
-	}
-	return nil
-}
-
-type HttpConn struct {
-	net.Conn
-	DstAddr *net.TCPAddr
-	req     *http.Request
-}
-
-func (c *HttpConn) readHttpRequest() error {
-	if c.req != nil {
-		return nil
-	}
-	req, err := http.ReadRequest(bufio.NewReaderSize(c, 0))
-	if err != nil {
-		return fmt.Errorf("failed to read HTTP request: %w", err)
-	}
-	c.req = req
-	return nil
-}
-
-func (c *HttpConn) getHost() (string, error) {
-	if c.req == nil {
-		err := c.readHttpRequest()
-		if err != nil {
-			return "", err
-		}
-	}
-	host := c.req.Host
-	if host == "" {
-		return "", errors.New("http request doesn't have Host header")
-	}
-	return host, nil
-}
-
-func (c *HttpConn) Host() (string, error) {
-	host, err := c.getHost()
-	if err != nil {
-		return "", err
-	}
-	if strings.Contains(host, ":") {
-		return host, nil
-	}
-	return fmt.Sprintf("%s:%d", host, c.DstAddr.Port), nil
-}
-
-func (c *HttpConn) PrepareTunnel(proxyConn net.Conn) error {
-	if c.req == nil {
-		if err := c.readHttpRequest(); err != nil {
-			return err
-		}
-	}
-	host, err := c.getHost()
-	if err != nil {
-		return err
-	}
-	if c.DstAddr.Port != 80 {
-		host = fmt.Sprintf("%s:%d", host, c.DstAddr.Port)
-	}
-	c.req.URL.Host = host
-	c.req.URL.Scheme = "http"
-	c.req.Header.Set("Connection", "close")
-	if err = c.req.WriteProxy(proxyConn); err != nil {
-		return fmt.Errorf("failed to send request to http proxy: %w", err)
-	}
-	return nil
+	return conn, nil
 }
 
 func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
@@ -287,7 +278,7 @@ func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 		0,
 	)
 	if e != 0 {
-		return nil, fmt.Errorf("getsocketopt SO_ORIGINAL_DST failed: errno %d", e)
+		return nil, fmt.Errorf("getsockopt SO_ORIGINAL_DST failed: errno %d", e)
 	}
 	return &net.TCPAddr{
 		IP:   sockaddr[4:8],
@@ -295,8 +286,7 @@ func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 	}, nil
 }
 
-func forward(conn, proxyConn net.Conn, logger *slog.Logger) {
-	// TODO: have something better to close the consigned connection when tunnel is closed or vice versa
+func RelayTcp(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Logger) {
 	var closed atomic.Bool
 	go func() {
 		_, err := io.Copy(proxyConn, conn)
@@ -313,44 +303,84 @@ func forward(conn, proxyConn net.Conn, logger *slog.Logger) {
 	closed.Store(true)
 }
 
-func handleConn(c net.Conn, proxy *net.TCPAddr) {
-	defer c.Close()
-	logger := slog.With("src", c.RemoteAddr())
-	dst, err := GetOriginalDst(c.(*net.TCPConn))
+func RelayHttp(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Logger) {
+	defer func() {
+		_ = proxyConn.Close()
+	}()
+	req, err := http.ReadRequest(bufio.NewReader(conn))
+	if err != nil {
+		logger.Error("failed to read HTTP request from connection", "error", err)
+		return
+	}
+	req.URL.Host = req.Host
+	req.URL.Scheme = "http"
+	req.Header.Set("Connection", "close")
+	if err := req.WriteProxy(proxyConn); err != nil {
+		logger.Error("failed to send HTTP request to proxy", "error", err)
+		return
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
+	if err != nil {
+		logger.Error("failed to read HTTP response from proxy", "error", err)
+		return
+	}
+	resp.Header.Set("Connection", "close")
+	if err := resp.Write(conn); err != nil {
+		logger.Error("failed to send HTTP response to connection", "error", err)
+		return
+	}
+}
+
+func HandleConn(conn net.Conn, proxy string) {
+	defer func() { _ = conn.Close() }()
+	logger := slog.With("src", conn.RemoteAddr())
+	dst, err := GetOriginalDst(conn.(*net.TCPConn))
 	if err != nil {
 		slog.Error("failed to get connection original destination", "error", err)
 		return
 	}
 	logger = logger.With("original_dst", dst)
-	var conn ConsignedConn
+	var host string
+	var relay func(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Logger)
+	var dialProxy func(proxy string) (net.Conn, error)
+	consigned := NewPrereadConn(conn)
 	switch dst.Port {
 	case 443:
-		conn = &TlsConn{Conn: c, DstAddr: dst}
+		relay = RelayTcp
+		sni, sniErr := PrereadSNI(consigned)
+		if sniErr != nil {
+			err = sniErr
+		} else {
+			host = fmt.Sprintf("%s:%d", sni, dst.Port)
+			dialProxy = func(proxy string) (net.Conn, error) { return DialProxyConnect(proxy, host) }
+		}
 	case 80:
-		conn = &HttpConn{Conn: c, DstAddr: dst}
+		relay = RelayHttp
+		host, err = PrereadHttpHost(consigned)
+		if !strings.Contains(host, ":") {
+			host = fmt.Sprintf("%s:%d", host, dst.Port)
+		}
+		dialProxy = DialProxy
 	default:
 		logger.Error(fmt.Sprintf("unknown destination port: %d", dst.Port))
 		return
 	}
-	host, err := conn.Host()
 	if err != nil {
 		logger.Error("failed to preread host from connection", "error", err)
-	}
-	logger = logger.With("host", host)
-	logger.Info("forward connection to http proxy")
-	tunnel, err := net.DialTCP("tcp", nil, proxy)
-	if err != nil {
-		logger.Error("failed to connect to proxy", "error", err)
 		return
 	}
-	if err = conn.PrepareTunnel(tunnel); err != nil {
-		logger.Error("failed to create proxy tunnel", "error", err)
+	logger = logger.With("host", host)
+	proxyConn, err := dialProxy(proxy)
+	if err != nil {
+		logger.Error("failed to connect to http proxy", "error", err)
+		return
 	}
-	forward(conn, tunnel, logger)
+	logger.Info("relay connection to http proxy")
+	relay(consigned, proxyConn, logger)
 }
 
 func main() {
-	proxyAddr := flag.String("proxy", "", "upstream HTTP proxy address in the 'host:port' format")
+	proxyFlag := flag.String("proxy", "", "upstream HTTP proxy address in the 'host:port' format")
 	flag.Parse()
 	listenAddr := &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 8443}
 	listener, err := net.ListenTCP("tcp", listenAddr)
@@ -358,17 +388,17 @@ func main() {
 		log.Fatalf("failed to listen on %s", listenAddr.String())
 	}
 	slog.Info("start listening on 0.0.0.0:8443")
-	proxy, err := net.ResolveTCPAddr("tcp", *proxyAddr)
-	if err != nil {
-		log.Fatalf("failed to resolve proxy address %q: %s", *proxyAddr, err)
+	proxy := *proxyFlag
+	if proxy == "" {
+		log.Fatalf("no upstearm proxy specified")
 	}
-	slog.Info(fmt.Sprintf("start forwarding to proxy %s", proxy.String()))
+	slog.Info(fmt.Sprintf("start forwarding to proxy %s", proxy))
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			slog.Error("failed to accept connection", "error", err)
 			continue
 		}
-		go handleConn(conn, proxy)
+		go HandleConn(conn, proxy)
 	}
 }
