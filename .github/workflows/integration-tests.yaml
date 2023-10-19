@@ -7,7 +7,7 @@ on:
 jobs:
   integration-test:
     name: Run Integration Tests
-    runs-on: [ self-hosted, linux, x64, xlarge ]
+    runs-on: [ self-hosted, linux, x64, large ]
 
     steps:
       - uses: actions/checkout@v2
