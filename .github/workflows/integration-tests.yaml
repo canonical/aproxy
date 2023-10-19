@@ -55,6 +55,10 @@ jobs:
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
 
+      - name: Test Docker Pull
+        run: |
+          sudo docker pull ubuntu:latest
+
       - name: Deploy microk8s
         run: |
           sudo snap install microk8s --classic --channel=1.28-strict/stable
