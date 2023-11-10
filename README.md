@@ -19,7 +19,7 @@ the same machine. Please note that aproxy for now only works with IPv4,
 supporting only HTTP on port 80 and HTTPS/TLS on port 443.
 
 ```bash
-nft -f - << EOF
+sudo nft -f - << EOF
 define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
 define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
 table ip aproxy
@@ -41,5 +41,5 @@ EOF
 You can inspect the access logs of aproxy using:
 
 ```bash
-sudo snap logs aproxy.aproxy
+sudo snap logs aproxy.aproxy -n=all
 ```
