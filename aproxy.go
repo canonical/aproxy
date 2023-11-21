@@ -256,7 +256,7 @@ func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
 	return conn, nil
 }
 
-// GetOriginalDst get the original destination socket option of a TCP connection before dstnat.
+// GetOriginalDst get the original destination address of a TCP connection before dstnat.
 func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 	file, err := conn.File()
 	defer func(file *os.File) {
