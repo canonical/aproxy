@@ -13,7 +13,7 @@ jobs:
 
   publish:
     name: Publish Aproxy
-    runs-on: [ self-hosted, linux, x64, large ]
+    runs-on: ubuntu-latest
     needs: [ tests, integration-tests ]
 
     steps:

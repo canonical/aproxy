@@ -17,6 +17,11 @@ jobs:
         with:
           go-version: 1.21
 
+      - name: Ensure No Formatting Changes
+        run: |
+          go fmt ./...
+          git diff --exit-code
+
       - name: Build and Test
         run: |
           go test -race ./...
