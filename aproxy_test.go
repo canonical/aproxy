@@ -11,7 +11,6 @@ func TestPrereadConn(t *testing.T) {
 	remote, local := net.Pipe()
 	go remote.Write([]byte("hello, world"))
 	preread := &PrereadConn{conn: local}
-	preread.StartPreread()
 	buf := make([]byte, 5)
 	_, err := preread.Read(buf)
 	if err != nil {
@@ -22,7 +21,7 @@ func TestPrereadConn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read failed during preread: %s", err)
 	}
-	preread.RestorePreread()
+	preread.EndPreread()
 	buf2 := make([]byte, 12)
 	_, err = io.ReadFull(preread, buf2)
 	if err != nil {

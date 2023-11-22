@@ -43,3 +43,17 @@ You can inspect the access logs of aproxy using:
 ```bash
 sudo snap logs aproxy.aproxy -n=all
 ```
+
+## Running from Source
+
+To run this application directly from the source code, you'll need to have Go
+1.21 installed on your system.
+
+Follow these steps to get started:
+
+```bash
+git clone https://github.com/canonical/aproxy.git
+cd aproxy
+go mod download
+go run . --proxy=squid.internal:3128
+```
