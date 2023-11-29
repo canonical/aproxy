@@ -23,7 +23,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "0.2.1"
+var version = "0.2.2"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.
@@ -374,16 +374,17 @@ func HandleConn(conn net.Conn, proxy string) {
 
 func main() {
 	proxyFlag := flag.String("proxy", "", "upstream HTTP proxy address in the 'host:port' format")
+	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
 	flag.Parse()
-	listenAddr := &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 8443}
+	listenAddr := *listenFlag
 	ctx := context.Background()
 	signal.NotifyContext(ctx, os.Interrupt)
 	listenConfig := new(net.ListenConfig)
-	listener, err := listenConfig.Listen(ctx, "tcp", fmt.Sprintf(":8443"))
+	listener, err := listenConfig.Listen(ctx, "tcp", listenAddr)
 	if err != nil {
-		log.Fatalf("failed to listen on %s", listenAddr.String())
+		log.Fatalf("failed to listen on %#v", listenAddr)
 	}
-	slog.Info("start listening on 0.0.0.0:8443")
+	slog.Info(fmt.Sprintf("start listening on %s", listenAddr))
 	proxy := *proxyFlag
 	if proxy == "" {
 		log.Fatalf("no upstearm proxy specified")

@@ -1,8 +1,7 @@
 #!/bin/bash
 set -e
 
-mkdir -p $SNAP_COMMON/cert
-
+[ -z "$(snapctl get listen)" ] && snapctl set listen=":8443"
 
 validate_proxy() {
     local hostport="$1"
@@ -25,8 +24,8 @@ validate_proxy() {
     return 0
 }
 
-
 proxy="$(snapctl get proxy)"
+listen="$(snapctl get listen)"
 
 if [ -z "${proxy}" ]; then
     echo "set upstream proxy using \`snap set aproxy proxy=example:1234\`"
@@ -35,7 +34,7 @@ fi
 
 validate_proxy "$proxy"
 
-echo "--proxy $proxy" > $SNAP_DATA/args
+echo "--proxy $proxy --listen $listen" > $SNAP_DATA/args
 
 snapctl stop ${SNAP_NAME}.aproxy
 snapctl start ${SNAP_NAME}.aproxy --enable
