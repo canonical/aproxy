@@ -375,8 +375,8 @@ func HandleConn(conn net.Conn, proxy string) {
 func main() {
 	proxyFlag := flag.String("proxy", "", "upstream HTTP proxy address in the 'host:port' format")
 	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
-	listenAddr := *listenFlag
 	flag.Parse()
+	listenAddr := *listenFlag
 	ctx := context.Background()
 	signal.NotifyContext(ctx, os.Interrupt)
 	listenConfig := new(net.ListenConfig)
