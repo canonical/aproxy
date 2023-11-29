@@ -384,7 +384,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen on %#v", listenAddr)
 	}
-	slog.Info("start listening on %s", listenAddr)
+	slog.Info(fmt.Sprintf("start listening on %s", listenAddr))
 	proxy := *proxyFlag
 	if proxy == "" {
 		log.Fatalf("no upstearm proxy specified")
