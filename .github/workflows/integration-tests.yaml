@@ -16,9 +16,15 @@ jobs:
         id: snapcraft-build
         uses: snapcore/action-build@v1
 
+      - name: Upload Aproxy Snap
+        uses: actions/upload-artifact@v3
+        with:
+          name: snap
+          path: aproxy*.snap
+
       - name: Install Aproxy Snap
         run: |
-          sudo snap install --dangerous ${{ steps.snapcraft-build.outputs.snap }}
+          sudo snap install --dangerous aproxy_*_amd64.snap
 
       - name: Configure Aproxy
         run: |
