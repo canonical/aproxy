@@ -27,12 +27,13 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: snap
-          path: ${{ steps.snapcraft-build.outputs.snap }}
+          path: aproxy*.snap
 
       - name: Publish Aproxy
-        uses: snapcore/action-publish@v1
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        with:
-          snap: ${{ steps.snapcraft-build.outputs.snap }}
-          release: edge
+        run: |
+          for snap in aproxy*.snap
+          do
+            snapcraft upload $snap --release edge
+          done
