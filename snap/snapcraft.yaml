@@ -12,6 +12,11 @@ license: Apache-2.0
 base: core22
 grade: stable
 confinement: strict
+architectures:
+  - build-on: amd64
+    build-for: amd64
+  - build-on: amd64
+    build-for: arm64
 
 apps:
   aproxy:
@@ -23,11 +28,18 @@ apps:
       - network-bind
 
 parts:
-  pollen:
-    plugin: go
+  aproxy:
+    plugin: nil
     source: .
     build-snaps:
       - go
+    override-build: |
+      snapcraftctl build
+      GOARCH=$SNAPCRAFT_TARGET_ARCH
+      CGO_ENABLED=0
+      go mod download
+      go build -ldflags="-w -s"
+      cp aproxy ${SNAPCRAFT_PART_INSTALL}/bin
   install-start-script:
     plugin: dump
     source: ./snap/local
