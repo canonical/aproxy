@@ -35,8 +35,8 @@ parts:
       - go
     override-build: |
       snapcraftctl build
-      GOARCH=$SNAPCRAFT_TARGET_ARCH
-      CGO_ENABLED=0
+      export GOARCH=$SNAPCRAFT_TARGET_ARCH
+      export CGO_ENABLED=0
       go mod download
       go build -ldflags="-w -s"
       mkdir ${SNAPCRAFT_PART_INSTALL}/bin
