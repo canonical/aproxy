@@ -39,6 +39,7 @@ parts:
       CGO_ENABLED=0
       go mod download
       go build -ldflags="-w -s"
+      mkdir ${SNAPCRAFT_PART_INSTALL}/bin
       cp aproxy ${SNAPCRAFT_PART_INSTALL}/bin
   install-start-script:
     plugin: dump
