@@ -57,5 +57,5 @@ Follow these steps to get started:
 git clone https://github.com/canonical/aproxy.git
 cd aproxy
 go mod download
-go run . --proxy=squid.internal:3128
+go run . --http-proxy=http://squid.internal:3128 --https-proxy=http://squid.internal:3128
 ```

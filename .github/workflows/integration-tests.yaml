@@ -49,21 +49,21 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl --noproxy "*" http://example.com -svS -o /dev/null
+          curl --noproxy "*" http://canonical.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl --noproxy "*" https://example.com -svS -o /dev/null
+          curl --noproxy "*" https://canonical.com -svS -o /dev/null
 
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
+          sudo snap logs aproxy.aproxy | grep -Fq "canonical.com:80"
+          sudo snap logs aproxy.aproxy | grep -Fq "canonical.com:443"
 
   integration-test:
     name: Run Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, linux, x64, large ]
 
     steps:
       - uses: actions/checkout@v2
@@ -112,13 +112,13 @@ jobs:
 
       - name: Test Passthrough HTTP
         run: |
-          curl --noproxy "*" http://www.example.com -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=www.example.com"
+          curl --noproxy "*" http://www.canonical.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=www.canonical.com"
 
       - name: Test Passthrough HTTPS
         run: |
-          curl --noproxy "*" https://example.com -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=example.com"
+          curl --noproxy "*" https://canonical.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=canonical.com"
 
       - name: Set HTTP Proxy
         run: |
@@ -126,13 +126,13 @@ jobs:
 
       - name: Test Proxy HTTP
         run: |
-          curl --noproxy "*" http://www.example.net -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.example.net"
+          curl --noproxy "*" http://www.ubuntu.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.com"
 
       - name: Test Passthrough HTTPS
         run: |
-          curl --noproxy "*" https://example.net -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=example.net"
+          curl --noproxy "*" https://ubuntu.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=ubuntu.com"
 
       - name: Set HTTPS Proxy
         run: |
@@ -140,13 +140,13 @@ jobs:
 
       - name: Test Proxy HTTP
         run: |
-          curl --noproxy "*" http://www.example.org -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.example.org"
+          curl --noproxy "*" http://www.ubuntu.net -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.net"
 
       - name: Test Proxy HTTPS
         run: |
-          curl --noproxy "*" https://example.org -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=example.org"
+          curl --noproxy "*" https://ubuntu.net -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=ubuntu.net"
 
       - name: Print Aproxy Logs
         if: always()
