@@ -1,5 +1,5 @@
 name: aproxy
-version: 0.2.2
+version: 0.3.0
 summary: Transparent proxy for HTTP and HTTPS/TLS connections.
 description: |
   Aproxy is a transparent proxy for HTTP and HTTPS/TLS connections. By 
@@ -26,6 +26,7 @@ apps:
     plugs:
       - network
       - network-bind
+      - network-control
 
 parts:
   aproxy:

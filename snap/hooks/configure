@@ -1,40 +1,22 @@
 #!/bin/bash
 set -e
 
+[ -z "$(snapctl get fwmark)" ] && snapctl set fwmark="0"
 [ -z "$(snapctl get listen)" ] && snapctl set listen=":8443"
 
-validate_proxy() {
-    local hostport="$1"
-    local host
-    local port
-
-    host="${hostport%:*}"
-    port="${hostport#*:}"
-
-    if [[ ! "$host" =~ ^[a-zA-Z0-9.-]+$ ]]; then
-        echo "invalid proxy: '$hostport'"
-        return 1
-    fi
-
-    if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port <= 0 || port > 65535 )); then
-        echo "invalid proxy: '$hostport'"
-        return 1
-    fi
-
-    return 0
-}
-
-proxy="$(snapctl get proxy)"
+fwmark="$(snapctl get fwmark)"
+http_proxy="$(snapctl get http.proxy)"
+https_proxy="$(snapctl get https.proxy)"
 listen="$(snapctl get listen)"
+proxy="$(snapctl get proxy)"
 
-if [ -z "${proxy}" ]; then
-    echo "set upstream proxy using \`snap set aproxy proxy=example:1234\`"
-    exit 0
-fi
+[ -n "${proxy}" ] && echo "proxy configuration is deprecated, use http.proxy and https.proxy instead" 1>&2
 
-validate_proxy "$proxy"
+# for backward compatability
+[ -z "${http_proxy}" ] && [ -n "${proxy}" ] && http_proxy="http://${proxy}"
+[ -z "${https_proxy}" ] && [ -n "${proxy}" ] && https_proxy="http://${proxy}"
 
-echo "--proxy $proxy --listen $listen" > $SNAP_DATA/args
+echo "--http-proxy='${http_proxy}' --https-proxy='${https_proxy}' --listen='${listen}' --fwmark='${fwmark}'" > $SNAP_DATA/args
 
 snapctl stop ${SNAP_NAME}.aproxy
 snapctl start ${SNAP_NAME}.aproxy --enable

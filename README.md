@@ -7,11 +7,13 @@ requiring destination hostname for auditing or access control.
 
 ## Usage
 
-Install aproxy using snap, and configure the upstream http proxy.
+Install aproxy using snap, and configure the upstream http proxy and the forward
+traffic firewall mark.
 
 ```bash
 sudo snap install aproxy --edge
-sudo snap set aproxy proxy=squid.internal:3128
+sudo snap connect aproxy:network-control
+sudo snap set aproxy http.proxy=http://squid.internal:3128 https.proxy=http://squid.internal:3128 fwmark=7316
 ```
 
 Create the following nftables rules to redirect outbound traffic to aproxy on
@@ -27,12 +29,12 @@ flush table ip aproxy
 table ip aproxy {
         chain prerouting {
                 type nat hook prerouting priority dstnat; policy accept;
-                ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
+                mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
         }
 
         chain output {
                 type nat hook output priority -100; policy accept;
-                ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
+                mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:8443
         }
 }
 EOF
