@@ -113,12 +113,12 @@ jobs:
       - name: Test Passthrough HTTP
         run: |
           curl --noproxy "*" http://www.example.com -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "passthrough.*host=www.example.com"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=www.example.com"
 
       - name: Test Passthrough HTTPS
         run: |
           curl --noproxy "*" https://example.com -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "passthrough.*host=example.net"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=example.net"
 
       - name: Set HTTP Proxy
         run: |
@@ -127,12 +127,12 @@ jobs:
       - name: Test Proxy HTTP
         run: |
           curl --noproxy "*" http://www.example.net -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "http.*proxy.*host=www.example.net"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.example.net"
 
       - name: Test Passthrough HTTPS
         run: |
           curl --noproxy "*" https://example.net -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "tls.*proxy.*host=example.net"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=example.net"
 
       - name: Set HTTPS Proxy
         run: |
@@ -141,12 +141,12 @@ jobs:
       - name: Test Proxy HTTP
         run: |
           curl --noproxy "*" http://www.example.org -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "http.*proxy.*host=www.example.org"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.example.org"
 
       - name: Test Proxy HTTPS
         run: |
           curl --noproxy "*" https://example.org -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -Fqi "tls.*proxy.*host=example.org"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=example.org"
 
       - name: Print Aproxy Logs
         if: always()
