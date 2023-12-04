@@ -8,6 +8,7 @@ jobs:
   integration-test-legacy:
     name: Run Legacy Integration Tests
     runs-on: [ self-hosted, linux, x64, large ]
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v2
@@ -49,11 +50,11 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl --noproxy "*" http://canonical.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 http://canonical.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl --noproxy "*" https://canonical.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 https://canonical.com -svS -o /dev/null
 
       - name: Test Access Logs
         run: |
@@ -64,6 +65,7 @@ jobs:
   integration-test:
     name: Run Integration Tests
     runs-on: [ self-hosted, linux, x64, large ]
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v2
@@ -112,12 +114,12 @@ jobs:
 
       - name: Test Passthrough HTTP
         run: |
-          curl --noproxy "*" http://www.canonical.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 http://www.canonical.com -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=www.canonical.com"
 
       - name: Test Passthrough HTTPS
         run: |
-          curl --noproxy "*" https://canonical.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 https://canonical.com -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=canonical.com"
 
       - name: Set HTTP Proxy
@@ -126,12 +128,12 @@ jobs:
 
       - name: Test Proxy HTTP
         run: |
-          curl --noproxy "*" http://www.ubuntu.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 http://www.ubuntu.com -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.com"
 
       - name: Test Passthrough HTTPS
         run: |
-          curl --noproxy "*" https://ubuntu.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 https://ubuntu.com -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=ubuntu.com"
 
       - name: Set HTTPS Proxy
@@ -140,12 +142,12 @@ jobs:
 
       - name: Test Proxy HTTP
         run: |
-          curl --noproxy "*" http://www.ubuntu.net -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 http://www.ubuntu.net -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.net"
 
       - name: Test Proxy HTTPS
         run: |
-          curl --noproxy "*" https://ubuntu.net -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 https://ubuntu.net -svS -o /dev/null
           sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=ubuntu.net"
 
       - name: Print Aproxy Logs
