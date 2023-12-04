@@ -7,7 +7,7 @@ on:
 jobs:
   test:
     name: Run Tests
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, linux, x64, large ]
 
     steps:
       - uses: actions/checkout@v2
