@@ -132,7 +132,7 @@ jobs:
       - name: Test Passthrough HTTPS
         run: |
           curl --noproxy "*" https://ubuntu.com -svS -o /dev/null
-          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=ubuntu.com"
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=ubuntu.com"
 
       - name: Set HTTPS Proxy
         run: |
