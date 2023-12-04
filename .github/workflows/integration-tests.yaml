@@ -72,6 +72,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install tinyproxy -y
+          sudo systemctl start tinyproxy
 
       - name: Build Aproxy Snap
         id: snapcraft-build
