@@ -87,6 +87,7 @@ jobs:
 
       - name: Install Aproxy Snap
         run: |
+          snap remove aproxy || :
           sudo snap install --dangerous aproxy_*_amd64.snap
 
       - name: Configure Aproxy
@@ -94,6 +95,7 @@ jobs:
           sudo snap connect aproxy:network-control
           sudo snap set aproxy fwmark=7316 listen=:23403
           
+          sudo nft flush ruleset
           sudo nft -f - << EOF
           define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
           define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
@@ -102,12 +104,12 @@ jobs:
           table ip aproxy {
             chain prerouting {
               type nat hook prerouting priority dstnat; policy accept;
-              mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
+              meta skuid tinyproxy mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
             }
 
-              chain output {
-                type nat hook output priority -100; policy accept;
-                mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
+            chain output {
+              type nat hook output priority -100; policy accept;
+              meta skuid tinyproxy mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
             }
           }
           EOF
