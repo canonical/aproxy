@@ -63,10 +63,15 @@ jobs:
 
   integration-test:
     name: Run Integration Tests
-    runs-on: [ self-hosted, linux, x64, large ]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Install Tinyproxy
+        run: |
+          sudo apt update
+          sudo apt install tinyproxy -y
 
       - name: Build Aproxy Snap
         id: snapcraft-build
@@ -117,7 +122,7 @@ jobs:
 
       - name: Set HTTP Proxy
         run: |
-          sudo snap set aproxy http.proxy=http://squid.internal:3128
+          sudo snap set aproxy http.proxy=http://localhost:8888
 
       - name: Test Proxy HTTP
         run: |
@@ -131,7 +136,7 @@ jobs:
 
       - name: Set HTTPS Proxy
         run: |
-          sudo snap set aproxy https.proxy=http://squid.internal:3128
+          sudo snap set aproxy https.proxy=http://localhost:8888
 
       - name: Test Proxy HTTP
         run: |
