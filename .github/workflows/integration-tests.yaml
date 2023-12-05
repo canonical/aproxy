@@ -7,7 +7,7 @@ on:
 jobs:
   integration-test-legacy:
     name: Run Legacy Integration Tests
-    runs-on: [ self-hosted, linux, x64, large ]
+    runs-on: [ self-hosted, linux, x64, edge ]
     timeout-minutes: 30
 
     steps:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Aproxy Snap
         run: |
-          snap remove aproxy || :
+          sudo snap remove aproxy || :
           sudo snap install --dangerous aproxy_*_amd64.snap
 
       - name: Configure Aproxy
@@ -67,7 +67,7 @@ jobs:
 
   integration-test:
     name: Run Integration Tests
-    runs-on: [ self-hosted, linux, x64, large ]
+    runs-on: [ self-hosted, linux, x64, edge ]
     timeout-minutes: 30
 
     steps:
@@ -90,7 +90,7 @@ jobs:
 
       - name: Install Aproxy Snap
         run: |
-          snap remove aproxy || :
+          sudo snap remove aproxy || :
           sudo snap install --dangerous aproxy_*_amd64.snap
 
       - name: Configure Aproxy
