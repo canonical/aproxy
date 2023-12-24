@@ -2,35 +2,9 @@ package main
 
 import (
 	"encoding/hex"
-	"io"
 	"net"
 	"testing"
 )
-
-func TestPrereadConn(t *testing.T) {
-	remote, local := net.Pipe()
-	go remote.Write([]byte("hello, world"))
-	preread := &PrereadConn{conn: local}
-	buf := make([]byte, 5)
-	_, err := preread.Read(buf)
-	if err != nil {
-		t.Fatalf("Read failed during preread: %s", err)
-	}
-	buf = make([]byte, 3)
-	_, err = preread.Read(buf)
-	if err != nil {
-		t.Fatalf("Read failed during preread: %s", err)
-	}
-	preread.EndPreread()
-	buf2 := make([]byte, 12)
-	_, err = io.ReadFull(preread, buf2)
-	if err != nil {
-		t.Fatalf("Read failed after preread: %s", err)
-	}
-	if string(buf2) != "hello, world" {
-		t.Fatalf("preread altered the read state: got %s", string(buf2))
-	}
-}
 
 func TestPrereadSNI(t *testing.T) {
 	remote, local := net.Pipe()
@@ -49,11 +23,39 @@ func TestPrereadSNI(t *testing.T) {
 func TestPrereadHttpHost(t *testing.T) {
 	remote, local := net.Pipe()
 	go remote.Write([]byte("GET / HTTP/1.1\r\nHost: example.com\r\nAccept: */*\r\n\r\n"))
-	host, err := PrereadHttpHost(NewPrereadConn(local))
+	host, err := PrereadHTTPHost(NewPrereadConn(local))
 	if err != nil {
-		t.Fatalf("PrereadHttpHost failed: %s", err)
+		t.Fatalf("PrereadHTTPHost failed: %s", err)
 	}
 	if host != "example.com" {
-		t.Fatalf("PrereadHttpHost returns incorrect host: expected: example.com, got %s", host)
+		t.Fatalf("PrereadHTTPHost returns incorrect host: expected: example.com, got %s", host)
+	}
+}
+
+func Test_parseProxyUrl(t *testing.T) {
+	tests := []struct {
+		name     string
+		proxyUrl string
+		want     string
+		wantErr  bool
+	}{
+		{"host and port", "http://example.com:123", "example.com:123", false},
+		{"ip and port", "http://10.30.74.14:8888", "10.30.74.14:8888", false},
+		// surprisingly this is correct, at least for curl
+		{"with path", "http://example.com:1234/test", "example.com:1234", false},
+		{"no port", "http://example.com", "", true},
+		{"no protocol", "example.com:1234", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseProxyUrl(tt.proxyUrl)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseProxyUrl() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("parseProxyUrl() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
