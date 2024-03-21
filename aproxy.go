@@ -7,17 +7,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/cryptobyte"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "0.3.0"
+var version = "1.0.0"
 
 // PrereadSNI pre-reads the Server Name Indication (SNI) from a TLS connection.
 func PrereadSNI(conn *PrereadConn) (_ string, err error) {
@@ -153,7 +153,8 @@ func PrereadHTTPHost(conn *PrereadConn) (_ string, err error) {
 	return host, nil
 }
 
-func HandleTCPConn(ctx context.Context, consigned *ConsignedConn, forwarder *Forwarder) {
+// HandleTLSConn handles one incoming TCP connection
+func HandleTLSConn(ctx context.Context, consigned *ConsignedConn, forwarder *Forwarder) {
 	sni, err := PrereadSNI(consigned.PrereadConn)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to preread SNI from connection", "error", err)
@@ -164,6 +165,7 @@ func HandleTCPConn(ctx context.Context, consigned *ConsignedConn, forwarder *For
 	forwarder.ForwardHTTPS(ctx, consigned)
 }
 
+// HandleHTTPConn handles one incoming HTTP connection
 func HandleHTTPConn(ctx context.Context, consigned *ConsignedConn, forwarder *Forwarder) {
 	host, err := PrereadHTTPHost(consigned.PrereadConn)
 	if err != nil {
@@ -190,31 +192,13 @@ func HandleConn(ctx context.Context, conn *net.TCPConn, forwarder *Forwarder) {
 	ctx = ContextWithConsignedConn(ctx, consigned)
 	switch dst.Port {
 	case 443:
-		HandleTCPConn(ctx, consigned, forwarder)
+		HandleTLSConn(ctx, consigned, forwarder)
 	case 80:
 		HandleHTTPConn(ctx, consigned, forwarder)
 	default:
 		logger.ErrorContext(ctx, fmt.Sprintf("unknown destination port: %d", dst.Port))
 		return
 	}
-}
-
-// parseProxyUrl parses a proxy URL to a TCP address in the format of 'host:port'.
-func parseProxyUrl(proxyUrl string) (string, error) {
-	u, err := url.Parse(proxyUrl)
-	if err == nil && u.Scheme != "http" {
-		err = fmt.Errorf("proxy protocol %s not supported", u.Scheme)
-	}
-	if err == nil && u.User != nil {
-		err = fmt.Errorf("proxy authencation not supported")
-	}
-	if err == nil && u.Port() == "" {
-		err = fmt.Errorf("proxy URL doesn't contain a port")
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to parse http proxy URL '%v': %w", proxyUrl, err)
-	}
-	return u.Host, nil
 }
 
 func main() {
@@ -224,26 +208,10 @@ func main() {
 	fwmarkFlag := flag.Uint("fwmark", 0, "set firewall mark for outgoing traffic")
 	flag.Parse()
 	httpProxy := *httpProxyFlag
-	if httpProxy != "" {
-		var err error
-		httpProxy, err = parseProxyUrl(*httpProxyFlag)
-		if err != nil {
-			log.Fatalf("failed to parse http proxy: %s", err)
-		}
-	}
 	httpsProxy := *httpsProxyFlag
-	if httpsProxy != "" {
-		var err error
-		httpsProxy, err = parseProxyUrl(*httpsProxyFlag)
-		if err != nil {
-			log.Fatalf("failed to parse https proxy: %s", err)
-		}
-	}
-	fwmark := uint32(*fwmarkFlag)
-	forwarder := &Forwarder{
-		fwmark:     fwmark,
-		httpProxy:  httpProxy,
-		httpsProxy: httpsProxy,
+	forwarder, err := NewForwarder(*httpProxyFlag, *httpsProxyFlag, *fwmarkFlag)
+	if err != nil {
+		log.Fatal(err)
 	}
 	listenAddr := *listenFlag
 	ctx := context.Background()

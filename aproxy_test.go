@@ -31,31 +31,3 @@ func TestPrereadHttpHost(t *testing.T) {
 		t.Fatalf("PrereadHTTPHost returns incorrect host: expected: example.com, got %s", host)
 	}
 }
-
-func Test_parseProxyUrl(t *testing.T) {
-	tests := []struct {
-		name     string
-		proxyUrl string
-		want     string
-		wantErr  bool
-	}{
-		{"host and port", "http://example.com:123", "example.com:123", false},
-		{"ip and port", "http://10.30.74.14:8888", "10.30.74.14:8888", false},
-		// surprisingly this is correct, at least for curl
-		{"with path", "http://example.com:1234/test", "example.com:1234", false},
-		{"no port", "http://example.com", "", true},
-		{"no protocol", "example.com:1234", "", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseProxyUrl(tt.proxyUrl)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseProxyUrl() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("parseProxyUrl() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

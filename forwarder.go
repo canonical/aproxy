@@ -16,9 +16,58 @@ type Forwarder struct {
 	fwmark     uint32
 	httpProxy  string
 	httpsProxy string
+	dialFunc   func(f *Forwarder, addr string) (net.Conn, error) // use dialFunc instead of dialTCP if not nil
 }
 
-// dialTCP dials the TCP connection to the remote address "HOST:PORT"
+// parseProxyUrl parses a proxy URL to a TCP address in the format of 'host:port'.
+func verifyProxyUrl(proxyUrl string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("failed to parse proxy URL '%v': %w", proxyUrl, err)
+		}
+	}()
+	u, err := url.Parse(proxyUrl)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "http" {
+		return fmt.Errorf("proxy protocol %s not supported", u.Scheme)
+	}
+	if u.User != nil {
+		return fmt.Errorf("proxy authencation not supported")
+	}
+	if u.Port() == "" {
+		return fmt.Errorf("proxy URL doesn't contain a port")
+	}
+	return nil
+}
+
+func NewForwarder(httpProxy, httpsProxy string, fwmark uint) (*Forwarder, error) {
+	if err := verifyProxyUrl(httpProxy); err != nil && httpProxy != "" {
+		return nil, err
+	}
+	if err := verifyProxyUrl(httpsProxy); err != nil && httpsProxy != "" {
+		return nil, err
+	}
+	if fwmark > 4294967295 {
+		return nil, fmt.Errorf("invalid fwmark %d", fwmark)
+	}
+	return &Forwarder{
+		fwmark:     uint32(fwmark),
+		httpProxy:  httpProxy,
+		httpsProxy: httpsProxy,
+	}, nil
+}
+
+func (f *Forwarder) proxyAddr(proxyUrl string) string {
+	u, err := url.Parse(proxyUrl)
+	if err != nil {
+		panic(err)
+	}
+	return u.Host
+}
+
+// dialTCP dials the TCP connection to the remote address.
 // dialTCP sets the fwmark of the underlying socket if the fwmark argument is not 0.
 func (f *Forwarder) dialTCP(addr string) (net.Conn, error) {
 	var fwmarkErr error
@@ -44,10 +93,19 @@ func (f *Forwarder) dialTCP(addr string) (net.Conn, error) {
 	return conn, nil
 }
 
+// dial dials the connection to the remote address.
+// if dialFunc is not nil, it will be used, or else dialTCP will be used.
+func (f *Forwarder) dial(addr string) (net.Conn, error) {
+	if f.dialFunc != nil {
+		return f.dialFunc(f, addr)
+	}
+	return f.dialTCP(addr)
+}
+
 // proxyConnect dials the TCP connection and finishes the HTTP CONNECT handshake with the proxy.
 // The dst argument is used during the handshake as the destination.
 func (f *Forwarder) proxyConnect(dst string) (net.Conn, error) {
-	conn, err := f.dialTCP(f.httpsProxy)
+	conn, err := f.dial(f.proxyAddr(f.httpsProxy))
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +127,11 @@ func (f *Forwarder) proxyConnect(dst string) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to send connect request to http proxy: %w", err)
 	}
 	response, err := http.ReadResponse(bufio.NewReaderSize(conn, 0), &request)
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to receive http connect response from proxy: %w", err)
+	}
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
 	}
 	return conn, nil
 }
@@ -126,7 +184,7 @@ func (f *Forwarder) relayHTTP(ctx context.Context, conn io.ReadWriter, proxyConn
 
 // passthrough forwards the connection to the original destination.
 func (f *Forwarder) passthrough(ctx context.Context, conn *ConsignedConn) {
-	out, err := f.dialTCP(conn.OriginalDst.String())
+	out, err := f.dial(conn.OriginalDst.String())
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to dial original src address for passthrough connection", "error", err)
 		return
@@ -137,7 +195,7 @@ func (f *Forwarder) passthrough(ctx context.Context, conn *ConsignedConn) {
 
 // proxyHTTP forwards the connection to an upstream HTTP proxy.
 func (f *Forwarder) proxyHTTP(ctx context.Context, conn *ConsignedConn) {
-	out, err := f.dialTCP(f.httpProxy)
+	out, err := f.dial(f.proxyAddr(f.httpProxy))
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to dial http proxy", "error", err)
 		return
