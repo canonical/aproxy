@@ -1,0 +1,53 @@
+name: Build RPM
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yaml
+
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yaml
+
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Install Build Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y rpm golang-go
+
+    - name: Build RPM - ${{ matrix.arch }}
+      run: |
+        # Get the release name
+        release_name=$(echo "${GITHUB_REF}" | awk -F'/' '{print $NF}')
+        
+        # Extract the version from the release name
+        version=$(echo "${release_name}" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
+
+        make build ARCH=${{ matrix.arch }} VERSION=${version}
+        make rpm ARCH=${{ matrix.arch }} VERSION=${version}
+        
+    - name: Upload RPMs to Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          rpmbuild/RPMS/**/*.rpm
+          out/*
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Job fail
+    continue-on-error: true
+    run: |
+      make clean

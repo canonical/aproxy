@@ -1,0 +1,12 @@
+[Unit]
+Description=Aproxy Service
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/aproxy/config.env
+ExecStart=/usr/bin/aproxy -proxy ${PROXY_URL}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
