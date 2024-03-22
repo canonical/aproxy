@@ -377,8 +377,8 @@ func main() {
 	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
 	flag.Parse()
 	listenAddr := *listenFlag
-	ctx := context.Background()
-	signal.NotifyContext(ctx, os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	listenConfig := new(net.ListenConfig)
 	listener, err := listenConfig.Listen(ctx, "tcp", listenAddr)
 	if err != nil {
@@ -390,12 +390,16 @@ func main() {
 		log.Fatalf("no upstearm proxy specified")
 	}
 	slog.Info(fmt.Sprintf("start forwarding to proxy %s", proxy))
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			slog.Error("failed to accept connection", "error", err)
-			continue
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				slog.Error("failed to accept connection", "error", err)
+				continue
+			}
+			go HandleConn(conn, proxy)
 		}
-		go HandleConn(conn, proxy)
-	}
+	}()
+	<-ctx.Done()
+	stop()
 }
