@@ -402,5 +402,4 @@ func main() {
 	}()
 	<-ctx.Done()
 	stop()
-	slog.Info("server gracefully shutdown")
 }
