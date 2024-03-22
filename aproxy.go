@@ -246,8 +246,8 @@ func main() {
 		httpsProxy: httpsProxy,
 	}
 	listenAddr := *listenFlag
-	ctx := context.Background()
-	signal.NotifyContext(ctx, os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	listenConfig := new(net.ListenConfig)
 	listener, err := listenConfig.Listen(ctx, "tcp", listenAddr)
 	if err != nil {
@@ -264,12 +264,16 @@ func main() {
 	} else {
 		logger.InfoContext(ctx, "start passthrough HTTPS connection")
 	}
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			logger.ErrorContext(ctx, "failed to accept connection", "error", err)
-			continue
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+			  logger.ErrorContext(ctx, "failed to accept connection", "error", err)
+				continue
+			}
+			go HandleConn(conn, proxy)
 		}
-		go HandleConn(ctx, conn.(*net.TCPConn), forwarder)
-	}
+	}()
+	<-ctx.Done()
+	stop()
 }
