@@ -4,6 +4,8 @@
 %define version ${VERSION}
 %define release 1
 %define _arch %{ARCH}
+%define debug_package %{nil}
+%define __strip /bin/true
 
 Name:           aproxy
 Release:        1%{?dist}
