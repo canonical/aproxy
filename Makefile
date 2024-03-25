@@ -36,11 +36,15 @@ build: ## Build the Go binary for the specified architecture (e.g., make build A
 .PHONY: rpm
 rpm: ## Build the RPM package for the specified architecture (e.g., make rpm ARCH=amd64)
 	@if [ -z "$(ARCH)" ]; then \
-		echo "ARCH is not set. Using local architecture: $(LOCAL_ARCH)"; \
-		rpmbuild -bb --define "_topdir $(PWD)/rpmbuild" --define "ARCH $(LOCAL_ARCH)" --define "VERSION $(VERSION)" --target $(LOCAL_ARCH) aproxy.spec; \
+	    echo "ARCH is not set. Using local architecture: $(LOCAL_ARCH)"; \
+	    ARCH="$(LOCAL_ARCH)"; \
+	elif [ "$(ARCH)" = "arm64" ]; then \
+	    echo "Copying .arm64 binary to .aarch64"; \
+	    cp $(OUT_DIR)/$(BINARY_NAME).arm64 $(OUT_DIR)/$(BINARY_NAME).aarch64; \
+	    rpmbuild -bb --define "_topdir $(PWD)/rpmbuild" --define "ARCH aarch64" --define "VERSION $(VERSION)" --target aarch64 aproxy.spec; \
 	else \
-		echo "Using specified architecture: $(ARCH)"; \
-		rpmbuild -bb --define "_topdir $(PWD)/rpmbuild" --define "ARCH $(ARCH)" --define "VERSION $(VERSION)" --target $(ARCH) aproxy.spec; \
+	    echo "Using specified architecture: $(ARCH)"; \
+	    rpmbuild -bb --define "_topdir $(PWD)/rpmbuild" --define "ARCH $(ARCH)" --define "VERSION $(VERSION)" --target "$(ARCH)" aproxy.spec; \
 	fi
 
 
