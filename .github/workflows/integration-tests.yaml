@@ -5,9 +5,10 @@ on:
   workflow_call:
 
 jobs:
-  integration-test:
-    name: Run Integration Tests
-    runs-on: [ self-hosted, linux, x64, large ]
+  integration-test-legacy:
+    name: Run Legacy Integration Tests
+    runs-on: [ self-hosted, linux, x64, edge ]
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v2
@@ -24,11 +25,14 @@ jobs:
 
       - name: Install Aproxy Snap
         run: |
+          sudo snap remove aproxy || :
           sudo snap install --dangerous aproxy_*_amd64.snap
 
       - name: Configure Aproxy
         run: |
           sudo snap set aproxy proxy=squid.internal:3128 listen=:23403
+          
+          sudo nft flush ruleset
           sudo nft -f - << EOF
           define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
           define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
@@ -49,14 +53,108 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl --noproxy "*" http://example.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 http://canonical.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl --noproxy "*" https://example.com -svS -o /dev/null
+          curl --noproxy "*" --max-time 30 https://canonical.com -svS -o /dev/null
 
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
+          sudo snap logs aproxy.aproxy | grep -Fq "canonical.com:80"
+          sudo snap logs aproxy.aproxy | grep -Fq "canonical.com:443"
+
+  integration-test:
+    name: Run Integration Tests
+    runs-on: [ self-hosted, linux, x64, edge ]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Tinyproxy
+        run: |
+          sudo apt update
+          sudo apt install tinyproxy -y
+
+      - name: Build Aproxy Snap
+        id: snapcraft-build
+        uses: snapcore/action-build@v1
+
+      - name: Upload Aproxy Snap
+        uses: actions/upload-artifact@v3
+        with:
+          name: snap
+          path: aproxy*.snap
+
+      - name: Install Aproxy Snap
+        run: |
+          sudo snap remove aproxy || :
+          sudo snap install --dangerous aproxy_*_amd64.snap
+
+      - name: Configure Aproxy
+        run: |
+          sudo snap connect aproxy:network-control
+          sudo snap set aproxy fwmark=7316 listen=:23403
+          
+          sudo nft flush ruleset
+          sudo nft -f - << EOF
+          define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
+          define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
+          table ip aproxy
+          flush table ip aproxy
+          table ip aproxy {
+            chain prerouting {
+              type nat hook prerouting priority dstnat; policy accept;
+              meta skuid != tinyproxy mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
+            }
+
+            chain output {
+              type nat hook output priority -100; policy accept;
+              meta skuid != tinyproxy mark != 7316 ip daddr != \$private-ips tcp dport { 80, 443 } counter dnat to \$default-ip:23403
+            }
+          }
+          EOF
+
+      - name: Test Passthrough HTTP
+        run: |
+          curl --noproxy "*" --max-time 30 http://www.canonical.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=www.canonical.com"
+
+      - name: Test Passthrough HTTPS
+        run: |
+          curl --noproxy "*" --max-time 30 https://canonical.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=canonical.com"
+
+      - name: Set HTTP Proxy
+        run: |
+          sudo snap set aproxy http.proxy=http://localhost:8888
+
+      - name: Test Proxy HTTP
+        run: |
+          curl --noproxy "*" --max-time 30 http://www.ubuntu.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.com"
+
+      - name: Test Passthrough HTTPS
+        run: |
+          curl --noproxy "*" --max-time 30 https://ubuntu.com -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "passthrough.*host=ubuntu.com"
+
+      - name: Set HTTPS Proxy
+        run: |
+          sudo snap set aproxy https.proxy=http://localhost:8888
+
+      - name: Test Proxy HTTP
+        run: |
+          curl --noproxy "*" --max-time 30 http://www.ubuntu.net -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "http.*proxy.*host=www.ubuntu.net"
+
+      - name: Test Proxy HTTPS
+        run: |
+          curl --noproxy "*" --max-time 30 https://ubuntu.net -svS -o /dev/null
+          sudo snap logs aproxy.aproxy -n 1 | grep -qi "tls.*proxy.*host=ubuntu.net"
+
+      - name: Print Aproxy Logs
+        if: always()
+        run: sudo snap logs aproxy -n all

@@ -2,35 +2,9 @@ package main
 
 import (
 	"encoding/hex"
-	"io"
 	"net"
 	"testing"
 )
-
-func TestPrereadConn(t *testing.T) {
-	remote, local := net.Pipe()
-	go remote.Write([]byte("hello, world"))
-	preread := &PrereadConn{conn: local}
-	buf := make([]byte, 5)
-	_, err := preread.Read(buf)
-	if err != nil {
-		t.Fatalf("Read failed during preread: %s", err)
-	}
-	buf = make([]byte, 3)
-	_, err = preread.Read(buf)
-	if err != nil {
-		t.Fatalf("Read failed during preread: %s", err)
-	}
-	preread.EndPreread()
-	buf2 := make([]byte, 12)
-	_, err = io.ReadFull(preread, buf2)
-	if err != nil {
-		t.Fatalf("Read failed after preread: %s", err)
-	}
-	if string(buf2) != "hello, world" {
-		t.Fatalf("preread altered the read state: got %s", string(buf2))
-	}
-}
 
 func TestPrereadSNI(t *testing.T) {
 	remote, local := net.Pipe()
@@ -49,11 +23,11 @@ func TestPrereadSNI(t *testing.T) {
 func TestPrereadHttpHost(t *testing.T) {
 	remote, local := net.Pipe()
 	go remote.Write([]byte("GET / HTTP/1.1\r\nHost: example.com\r\nAccept: */*\r\n\r\n"))
-	host, err := PrereadHttpHost(NewPrereadConn(local))
+	host, err := PrereadHTTPHost(NewPrereadConn(local))
 	if err != nil {
-		t.Fatalf("PrereadHttpHost failed: %s", err)
+		t.Fatalf("PrereadHTTPHost failed: %s", err)
 	}
 	if host != "example.com" {
-		t.Fatalf("PrereadHttpHost returns incorrect host: expected: example.com, got %s", host)
+		t.Fatalf("PrereadHTTPHost returns incorrect host: expected: example.com, got %s", host)
 	}
 }
