@@ -29,7 +29,7 @@ func GetSocketIPv4OriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 		0,
 	)
 	if e != 0 {
-		return nil, fmt.Errorf("getsockopt SO_ORIGINAL_DST failed: errno %d", e)
+		return nil, e
 	}
 	return &net.TCPAddr{
 		IP:   sockaddr[4:8],
