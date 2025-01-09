@@ -17,6 +17,10 @@ architectures:
     build-for: amd64
   - build-on: amd64
     build-for: arm64
+  - build-on: amd64
+    build-for: s390x
+  - build-on: amd64
+    build-for: ppc64el
 
 apps:
   aproxy:
@@ -35,7 +39,11 @@ parts:
       - go
     override-build: |
       snapcraftctl build
-      export GOARCH=$SNAPCRAFT_TARGET_ARCH
+      if [ $SNAPCRAFT_TARGET_ARCH == ppc64el ]; then
+        export GOARCH=ppc64le
+      else
+        export GOARCH=$SNAPCRAFT_TARGET_ARCH
+      fi
       export CGO_ENABLED=0
       go mod download
       go build -ldflags="-w -s"
