@@ -18,10 +18,6 @@ architectures:
   - build-on: amd64
     build-for: arm64
   - build-on: amd64
-    build-for: arm64
-  - build-on: amd64
-    build-for: arm64
-  - build-on: amd64
     build-for: s390x
   - build-on: amd64
     build-for: ppc64le
