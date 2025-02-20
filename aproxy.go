@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/cryptobyte"
 	"io"
 	"log"
 	"log/slog"
@@ -18,12 +19,9 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
-
-	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "0.2.2"
+var version = "0.2.3"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.
@@ -268,11 +266,7 @@ func GetOriginalDst(conn *net.TCPConn) (*net.TCPAddr, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert connection to file: %w", err)
 	}
-	return GetsockoptIPv4OriginalDst(
-		int(file.Fd()),
-		syscall.SOL_IP,
-		80, // SO_ORIGINAL_DST
-	)
+	return GetsockoptIPv4OriginalDst(file.Fd())
 }
 
 // RelayTCP relays data between the incoming TCP connection and the proxy connection.
