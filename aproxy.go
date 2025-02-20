@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 )
 
-var version = "0.2.2"
+var version = "0.2.3"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.
