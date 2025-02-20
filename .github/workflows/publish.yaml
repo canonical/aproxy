@@ -24,7 +24,7 @@ jobs:
         uses: snapcore/action-build@v1
 
       - name: Upload Aproxy Snap
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snap
           path: aproxy*.snap
