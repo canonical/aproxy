@@ -10,14 +10,14 @@ import (
 	"unsafe"
 )
 
-func GetsockoptIPv4OriginalDst(fd, level, opt int) (*net.TCPAddr, error) {
+func GetsockoptIPv4OriginalDst(fd uintptr) (*net.TCPAddr, error) {
 	var sockaddr [16]byte
-	size := 16
+	var size uint32 = 16
 	_, _, e := syscall.Syscall6(
 		syscall.SYS_GETSOCKOPT,
-		uintptr(fd),
-		uintptr(level),
-		uintptr(opt),
+		fd,
+		uintptr(syscall.SOL_IP),
+		uintptr(80), // SO_ORIGINAL_DST
 		uintptr(unsafe.Pointer(&sockaddr)),
 		uintptr(unsafe.Pointer(&size)),
 		0,
