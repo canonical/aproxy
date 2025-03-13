@@ -245,11 +245,11 @@ func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to send connect request to http proxy: %w", err)
 	}
 	response, err := http.ReadResponse(bufio.NewReaderSize(conn, 0), &request)
-	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to receive http connect response from proxy: %w", err)
+	}
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("proxy return %d response for connect request", response.StatusCode)
 	}
 	return conn, nil
 }
