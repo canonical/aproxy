@@ -304,11 +304,7 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 		logger.Error("failed to send HTTP request to proxy", "error", err)
 		return
 	}
-	_, err = io.Copy(proxyConn, conn)
-	if err != nil {
-		logger.Error("failed to forward HTTP response to connection", "error", err)
-		return
-	}
+	RelayTCP(conn, proxyConn, logger)
 }
 
 // HandleConn manages the incoming connections.

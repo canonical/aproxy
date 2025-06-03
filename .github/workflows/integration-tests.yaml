@@ -51,6 +51,11 @@ jobs:
           }
           EOF
 
+      - name: Start tcpdump
+        run: |
+          sudo tcpdump -i any -s 65535 -w capture.pcap &
+          echo $! > tcpdump.pid
+
       - name: Test HTTP
         run: |
           curl -v -x http://$(sudo snap get aproxy proxy) http://example.com
@@ -68,7 +73,6 @@ jobs:
 
       - name: Test HKP
         run: |
-          curl -v -x http://$(sudo snap get aproxy proxy) http://keyserver.ubuntu.com:11371
           gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - name: Test Access Logs
