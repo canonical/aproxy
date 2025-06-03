@@ -64,7 +64,7 @@ jobs:
       - name: Test HKP
         run: |
           curl -v -x http://$(sudo snap get aproxy proxy) http://keyserver.ubuntu.com:11371
-          gpg -v --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+          gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - name: Test Access Logs
         run: |
