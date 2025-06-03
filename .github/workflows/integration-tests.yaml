@@ -53,17 +53,17 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl -v -x http://${{ env.EGRESS_PROXY }} http://example.com
+          curl -v -x http://$(sudo snap get aproxy proxy) http://example.com
           curl --noproxy "*" http://example.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl -v -x http://${{ env.EGRESS_PROXY }} https://example.com
+          curl -v -x http://$(sudo snap get aproxy proxy) https://example.com
           curl --noproxy "*" https://example.com -svS -o /dev/null
 
       - name: Test HKP
         run: |
-          curl -v -x http://${{ env.EGRESS_PROXY }} http://keyserver.ubuntu.com:11371
+          curl -v -x http://$(sudo snap get aproxy proxy) http://keyserver.ubuntu.com:11371
           gpg -v --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - name: Test Access Logs
