@@ -10,6 +10,10 @@ jobs:
     runs-on: [ self-hosted, linux, x64, jammy, large ]
 
     steps:
+      - name: Test
+        run:
+          curl -v -x http://$(sudo snap get aproxy proxy) http://httpbin.org/anything
+
       - uses: actions/checkout@v2
 
       - name: Build aproxy Snap
