@@ -299,6 +299,9 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 	}
 	req.URL.Host = req.Host
 	req.URL.Scheme = "http"
+	if req.UserAgent() == "" {
+		req.Header.Set("User-Agent", "")
+	}
 	req.Header.Set("Connection", "close")
 	if err := req.WriteProxy(proxyConn); err != nil {
 		logger.Error("failed to send HTTP request to proxy", "error", err)
@@ -311,7 +314,6 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 	}
 	log.Printf("received HTTP response body:\n")
 	resp.Header.Set("Connection", "close")
-	resp.Header.Del("Transfer-Encoding")
 	if err := resp.Write(conn); err != nil {
 		logger.Error("failed to send HTTP response to connection", "error", err)
 		return
