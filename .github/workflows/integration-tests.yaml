@@ -60,12 +60,10 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl -v -x http://$(sudo snap get aproxy proxy) http://example.com
           curl --noproxy "*" http://example.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl -v -x http://$(sudo snap get aproxy proxy) https://example.com
           curl --noproxy "*" https://example.com -svS -o /dev/null
 
       - name: Start tcpdump in background
@@ -75,7 +73,7 @@ jobs:
 
       - name: Test HKP
         run: |
-          gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+          timeout 60 gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - name: Test Access Logs
         run: |
