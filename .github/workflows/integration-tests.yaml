@@ -76,3 +76,7 @@ jobs:
         if: failure()
         run: |
           sudo snap logs aproxy.aproxy -n=all
+
+      - name: Setup tmate session
+        if: failure()
+        uses: canonical/action-tmate@main
