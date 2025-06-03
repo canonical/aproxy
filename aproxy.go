@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -306,9 +307,26 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 		req.Header.Set("Host", "")
 	}
 	req.Header.Set("Connection", "close")
-	if err := req.WriteProxy(proxyConn); err != nil {
-		logger.Error("failed to send HTTP request to proxy", "error", err)
-		return
+
+	if req.Proto == "HTTP/1.0" {
+		buf := bytes.NewBuffer(nil)
+		err := req.WriteProxy(buf)
+		if err != nil {
+			logger.Error("failed to serialize HTTP/1.0 request", "error", err)
+			return
+		}
+		reqStr := buf.String()
+		reqStr = strings.Replace(reqStr, "HTTP/1.1", "HTTP/1.0", 1)
+		_, err = proxyConn.Write([]byte(reqStr))
+		if err != nil {
+			logger.Error("failed to send HTTP request to proxy", "error", err)
+			return
+		}
+	} else {
+		if err := req.WriteProxy(proxyConn); err != nil {
+			logger.Error("failed to send HTTP request to proxy", "error", err)
+			return
+		}
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
 	if err != nil {
