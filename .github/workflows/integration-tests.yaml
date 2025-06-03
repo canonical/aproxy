@@ -53,10 +53,12 @@ jobs:
 
       - name: Test HTTP
         run: |
+          curl -v -x http://${{ env.EGRESS_PROXY }} http://example.com
           curl --noproxy "*" http://example.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
+          curl -v -x http://${{ env.EGRESS_PROXY }} https://example.com
           curl --noproxy "*" https://example.com -svS -o /dev/null
 
       - name: Test HKP
