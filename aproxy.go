@@ -309,7 +309,6 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 		logger.Error("failed to read HTTP response from proxy", "error", err)
 		return
 	}
-	resp.Header.Set("Connection", "close")
 	if err := resp.Write(conn); err != nil {
 		logger.Error("failed to send HTTP response to connection", "error", err)
 		return
