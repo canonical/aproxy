@@ -308,6 +308,9 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 	}
 	req.Header.Set("Connection", "close")
 	if req.Proto == "HTTP/1.0" {
+		// no matter what the request protocol is, Go enforces a minimum version of HTTP/1.0
+		// this causes problems for HTTP/1.0 only clients like GPG (HKP)
+		// manually modify and send the HTTP/1.0 request to the proxy server
 		buf := bytes.NewBuffer(nil)
 		err := req.WriteProxy(buf)
 		if err != nil {
