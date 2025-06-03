@@ -383,7 +383,7 @@ func HandleConn(conn net.Conn, proxy string) {
 			return
 		}
 		logger.Info("relay HTTP connection to proxy")
-		RelayTCP(consigned, proxyConn, logger)
+		RelayHTTP(consigned, proxyConn, logger)
 	default:
 		logger.Error(fmt.Sprintf("unknown destination port: %d", dst.Port))
 		return
