@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/cryptobyte"
 	"io"
 	"log"
 	"log/slog"
@@ -19,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var version = "0.2.3"
@@ -298,10 +300,32 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 	}
 	req.URL.Host = req.Host
 	req.URL.Scheme = "http"
+	if req.UserAgent() == "" {
+		req.Header.Set("User-Agent", "")
+	}
 	req.Header.Set("Connection", "close")
-	if err := req.WriteProxy(proxyConn); err != nil {
-		logger.Error("failed to send HTTP request to proxy", "error", err)
-		return
+	if req.Proto == "HTTP/1.0" {
+		// no matter what the request protocol is, Go enforces a minimum version of HTTP/1.1
+		// this causes problems for HTTP/1.0 only clients like GPG (HKP)
+		// manually modify and send the HTTP/1.0 request to the proxy server
+		buf := bytes.NewBuffer(nil)
+		err := req.WriteProxy(buf)
+		if err != nil {
+			logger.Error("failed to serialize HTTP/1.0 request", "error", err)
+			return
+		}
+		reqStr := buf.String()
+		reqStr = strings.Replace(reqStr, "HTTP/1.1", "HTTP/1.0", 1)
+		_, err = proxyConn.Write([]byte(reqStr))
+		if err != nil {
+			logger.Error("failed to send HTTP request to proxy", "error", err)
+			return
+		}
+	} else {
+		if err := req.WriteProxy(proxyConn); err != nil {
+			logger.Error("failed to send HTTP request to proxy", "error", err)
+			return
+		}
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
 	if err != nil {
@@ -343,7 +367,7 @@ func HandleConn(conn net.Conn, proxy string) {
 			logger.Info("relay TLS connection to proxy")
 			RelayTCP(consigned, proxyConn, logger)
 		}
-	case 80:
+	case 80, 11371:
 		host, err := PrereadHttpHost(consigned)
 		if err != nil {
 			logger.Error("failed to preread HTTP host from connection", "error", err)
