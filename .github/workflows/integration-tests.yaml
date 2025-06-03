@@ -61,11 +61,15 @@ jobs:
 
       - name: Test HKP
         run: |
-          gpg -v --keyserver keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+          gpg -v --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - name: Test Access Logs
         run: |
-          sudo snap logs aproxy.aproxy
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
           sudo snap logs aproxy.aproxy | grep -Fq "keyserver.ubuntu.com:11371"
+
+      - name: Show Access Logs
+        if: failure()
+        run: |
+          sudo snap logs aproxy.aproxy -n=all
