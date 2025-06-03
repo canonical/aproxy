@@ -61,6 +61,11 @@ jobs:
           curl -v -x http://$(sudo snap get aproxy proxy) https://example.com
           curl --noproxy "*" https://example.com -svS -o /dev/null
 
+      - name: Start tcpdump in background
+        run: |
+          sudo tcpdump -i any -s 65535 -w capture.pcap &
+          echo $! > tcpdump.pid
+
       - name: Test HKP
         run: |
           curl -v -x http://$(sudo snap get aproxy proxy) http://keyserver.ubuntu.com:11371
@@ -77,6 +82,17 @@ jobs:
         run: |
           sudo snap logs aproxy.aproxy -n=all
 
-      - name: Setup tmate session
+      - name: Stop tcpdump
         if: failure()
-        uses: canonical/action-tmate@main
+        run: |
+          PID=$(cat tcpdump.pid)
+          if [ -n "$PID" ]; then
+            sudo kill "$PID" || true
+          fi
+
+      - name: Upload tcpdump capture
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcpdump
+          path: capture.pcap
