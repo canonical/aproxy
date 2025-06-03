@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Test
-        run: |
+        run: |-
           curl -v -x http://$(sudo snap get aproxy proxy) http://httpbin.org/anything
 
       - uses: actions/checkout@v2
