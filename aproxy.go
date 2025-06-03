@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/cryptobyte"
 	"io"
 	"log"
 	"log/slog"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var version = "0.2.3"
@@ -343,7 +344,7 @@ func HandleConn(conn net.Conn, proxy string) {
 			logger.Info("relay TLS connection to proxy")
 			RelayTCP(consigned, proxyConn, logger)
 		}
-	case 80:
+	case 80, 11371:
 		host, err := PrereadHttpHost(consigned)
 		if err != nil {
 			logger.Error("failed to preread HTTP host from connection", "error", err)
