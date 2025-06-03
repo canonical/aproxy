@@ -16,7 +16,9 @@ jobs:
 
       - name: Test
         run: |
-          curl -v -x http://$(sudo snap get aproxy proxy) http://keyserver.ubuntu.com:11371
+          gpg --keyserver hkp://keyserver.ubuntu.com \
+            --keyserver-options http-proxy=http://$(sudo snap get aproxy proxy) \
+            --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
       - uses: actions/checkout@v2
 
