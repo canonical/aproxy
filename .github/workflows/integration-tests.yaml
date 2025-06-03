@@ -60,11 +60,11 @@ jobs:
 
       - name: Test HTTP
         run: |
-          curl --noproxy "*" http://example.com -svS -o /dev/null
+          timeout 60 curl --noproxy "*" http://example.com -svS -o /dev/null
 
       - name: Test HTTPS
         run: |
-          curl --noproxy "*" https://example.com -svS -o /dev/null
+          timeout 60 curl --noproxy "*" https://example.com -svS -o /dev/null
 
       - name: Start tcpdump in background
         run: |
@@ -91,8 +91,9 @@ jobs:
         run: |
           PID=$(cat tcpdump.pid)
           if [ -n "$PID" ]; then
-            sudo kill "$PID" || true
+            sudo kill -2 "$PID" || true
           fi
+          sleep 1
 
       - name: Upload tcpdump capture
         if: failure()
