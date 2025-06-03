@@ -304,13 +304,9 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 		logger.Error("failed to send HTTP request to proxy", "error", err)
 		return
 	}
-	resp, err := http.ReadResponse(bufio.NewReader(proxyConn), req)
+	_, err = io.Copy(proxyConn, conn)
 	if err != nil {
-		logger.Error("failed to read HTTP response from proxy", "error", err)
-		return
-	}
-	if err := resp.Write(conn); err != nil {
-		logger.Error("failed to send HTTP response to connection", "error", err)
+		logger.Error("failed to forward HTTP response to connection", "error", err)
 		return
 	}
 }
