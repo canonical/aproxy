@@ -10,16 +10,6 @@ jobs:
     runs-on: [ self-hosted, linux, x64, jammy, large ]
 
     steps:
-      - name: Test
-        run: |-
-          curl -v -x http://$(sudo snap get aproxy proxy) http://httpbin.org/anything
-
-      - name: Test
-        run: |
-          gpg --keyserver hkp://keyserver.ubuntu.com \
-            --keyserver-options http-proxy=http://$(sudo snap get aproxy proxy) \
-            --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
-
       - uses: actions/checkout@v2
 
       - name: Build aproxy Snap
