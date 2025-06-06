@@ -315,7 +315,9 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 			return
 		}
 		reqStr := buf.String()
-		reqStr = strings.Replace(reqStr, "HTTP/1.1", "HTTP/1.0", 1)
+		crlfIndex := strings.Index(reqStr, "\r\n")
+		protoSpaceIndex := strings.LastIndex(reqStr[:crlfIndex], " ")
+		reqStr = reqStr[:protoSpaceIndex+1] + "HTTP/1.0" + reqStr[crlfIndex:]
 		_, err = proxyConn.Write([]byte(reqStr))
 		if err != nil {
 			logger.Error("failed to send HTTP request to proxy", "error", err)
