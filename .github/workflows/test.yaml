@@ -33,7 +33,8 @@ jobs:
           name: snap
       - name: Install aproxy Snap
         run: |
-          sudo snap install --dangerous **/aproxy_*_amd64.snap
+          sudo snap install --dangerous aproxy_*_amd64.snap
+          rm -rf aproxy_*_amd64.snap
       - name: Inspect the system
         run: |
           set -x
