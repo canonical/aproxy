@@ -2,31 +2,7 @@
 # SPDX-FileCopyrightText: Canonical Ltd.
 name: smoke
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-  workflow_call:
-    inputs:
-      snapd-channel:
-        description: 'Store channel of the snapd snap'
-        type: string
-        default: 'latest/beta'
-        required: true
-      lxd-channel:
-        description: 'Store channel of the lxd snap'
-        type: string
-        default: 'latest/stable'
-        required: true
-      snapcraft-channel:
-        description: 'Store channel of the snapcraft snap'
-        type: string
-        default: 'latest/stable'
-        required: true
-      image-garden-channel:
-        description: 'Store channel of the image-garden snap'
-        type: string
-        default: 'latest/edge'
-        required: true
 jobs:
   build-aproxy:
     name: Run Integration Tests
