@@ -48,6 +48,8 @@ jobs:
         # This is essential for git restore-mtime to work correctly.
         with:
           fetch-depth: 0
+          repository: canonical/snapd-smoke-tests
+          ref: tweak/self-hosted-runners
       - name: Cache downloaded snaps
         uses: actions/cache@v4
         with:
