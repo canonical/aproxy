@@ -128,6 +128,10 @@ jobs:
           export X_SPREAD_SNAPCRAFT_CHANEL="${{ inputs.snapcraft-channel || 'latest/stable' }}"
           # Run integration tests.
           spread -v garden:ubuntu-cloud-24.04:
+      - name: Show aproxy logs
+        if: failure()
+        run: |
+          sudo snap logs aproxy -n=all
       - name: Stop tcpdump
         if: failure()
         run: |
