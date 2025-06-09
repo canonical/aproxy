@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Canonical Ltd.
+name: smoke
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_call:
+    inputs:
+      snapd-channel:
+        description: 'Store channel of the snapd snap'
+        type: string
+        default: 'latest/beta'
+        required: true
+      lxd-channel:
+        description: 'Store channel of the lxd snap'
+        type: string
+        default: 'latest/stable'
+        required: true
+      snapcraft-channel:
+        description: 'Store channel of the snapcraft snap'
+        type: string
+        default: 'latest/stable'
+        required: true
+      image-garden-channel:
+        description: 'Store channel of the image-garden snap'
+        type: string
+        default: 'latest/edge'
+        required: true
+jobs:
+  canary:
+    runs-on: [self-hosted, linux, AMD64, X64, large, noble]
+    steps:
+      - name: Inspect the system
+        run: |
+          set -x
+          uname -a
+          free -m
+          nproc
+          snap version
+          groups
+          ip addr list
+          ls -l /dev/kvm || true
+          echo "http_proxy=${http_proxy:-}"
+          echo "https_proxy=${https_proxy:-}"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # This is essential for git restore-mtime to work correctly.
+        with:
+          fetch-depth: 0
+      - name: Cache downloaded snaps
+        uses: actions/cache@v4
+        with:
+          path: .image-garden/cache-*/snaps
+          key: snaps
+      - name: Cache downloaded virtual machine images
+        uses: actions/cache@v4
+        with:
+          path: ~/snap/image-garden/common/cache/dl
+          key: image-garden-dl-ubuntu-cloud-24.04
+      - name: Cache customized virtual machine images
+        uses: actions/cache@v4
+        with:
+          path: .image-garden
+          key: image-garden-img-ubuntu-cloud-24.04-${{ hashFiles('.image-garden.mk') }}
+      - name: Make permissions on /dev/kvm more lax
+        run: sudo chmod -v 666 /dev/kvm
+      - name: Work around a bug in snapd suspend logic
+        run: |
+          sudo mkdir -p /etc/systemd/system/snapd.service.d
+          (
+            echo "[Service]"
+            echo "Environment=SNAPD_STANDBY_WAIT=15m"
+          ) | sudo tee /etc/systemd/system/snapd.service.d/standby.conf
+          sudo systemctl daemon-reload
+          sudo systemctl restart snapd.service
+      - name: Install image-garden snap
+        run: |
+          export X_SPREAD_SNAP_CACHE_DIR="$(pwd)"/.image-garden/cache-"$(uname -m)"/snaps
+          ./bin/snap-install snapd
+          ./bin/snap-install core24
+          ./bin/snap-install --devmode image-garden "${{ inputs.image-garden-channel || 'latest/edge' }}"
+          # Disable apt-cacher-ng because it cannot be yet configured to use a proxy itself.
+          # See https://gitlab.com/zygoon/image-garden/-/issues/30
+          sudo systemctl disable --now snap.image-garden.apt-cacher-ng.service
+      - name: Use spread from image-garden snap
+        run: sudo snap alias image-garden.spread spread
+      - name: Restore mtime of .image-garden.mk
+        run: |
+          # Disable man page updates which is time-consuming.
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo DEBIAN_FRONTEND=noninteractive dpkg-reconfigure man-db
+          # Download the deb and install it by hand.
+          wget http://ftp.us.debian.org/debian/pool/main/g/git-mestrelion-tools/git-restore-mtime_2022.12-1_all.deb
+          sudo dpkg -i git-restore-mtime_2022.12-1_all.deb
+          rm -f git-restore-mtime_2022.12-1_all.deb
+          # sudo apt update
+          # sudo apt install -y git-restore-mtime
+          git restore-mtime .image-garden.mk
+          ls -l .image-garden.mk
+      - name: Make the virtual machine image (dry run)
+        run: |
+          mkdir -p ~/snap/image-garden/common/cache/dl
+          ls -lR ~/snap/image-garden/common/cache/dl
+          ls -lR .image-garden
+          image-garden make --debug --dry-run ubuntu-cloud-24.04."$(uname -m)".qcow2
+      - name: Make the virtual machine image
+        run: image-garden make ubuntu-cloud-24.04."$(uname -m)".qcow2 ubuntu-cloud-24.04."$(uname -m)".run ubuntu-cloud-24.04.user-data ubuntu-cloud-24.04.meta-data ubuntu-cloud-24.04.seed.iso
+      - name: Ensure snap cache exists
+        run: mkdir -p .image-garden/cache-"$(uname -m)"/snaps
+      - name: Show snap cache (before testing)
+        run: ls -lR .image-garden/cache-"$(uname -m)"/snaps
+      - name: Start tcpdump
+        run: |
+          sudo tcpdump -i any -s 65535 -w capture.pcap &
+          echo $! > tcpdump.pid
+      - name: Run integration tests
+        run: |
+          # Export variables that spread picks up from the host.
+          export X_SPREAD_SNAPD_CHANEL="${{ inputs.snapd-channel || 'latest/beta' }}"
+          export X_SPREAD_LXD_CHANNEL="${{ inputs.lxd-channel || 'latest/stable' }}"
+          export X_SPREAD_SNAPCRAFT_CHANEL="${{ inputs.snapcraft-channel || 'latest/stable' }}"
+          # Run integration tests.
+          spread -v garden:ubuntu-cloud-24.04:
+      - name: Stop tcpdump
+        if: failure()
+        run: |
+          PID=$(cat tcpdump.pid)
+          if [ -n "$PID" ]; then
+            sudo kill -2 "$PID" || true
+          fi
+          sleep 1
+      - name: Upload tcpdump capture
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcpdump
+          path: capture.pcap
+      - name: Show snap cache (after testing)
+        if: always()
+        run: ls -lR .image-garden/cache-"$(uname -m)"/snaps
+      - name: Show logs
+        if: failure()
+        run: |
+          for f in .image-garden/*.log; do
+              echo "********************************"
+              echo "$f"
+              echo "********************************"
+              echo
+              cat "$f"
+              echo
+              echo
+          done
