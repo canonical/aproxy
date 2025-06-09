@@ -99,10 +99,7 @@ func PrereadSNI(conn *PrereadConn) (_ string, err error) {
 	buf := make([]byte, msgLen+5)
 	n, err = io.ReadFull(conn, buf[5:])
 	if n != int(msgLen) {
-		return "", fmt.Errorf("client hello too short (%d < %d)", n, msgLen)
-	}
-	if err != nil {
-		return "", err
+		return "", fmt.Errorf("client hello too short (%d < %d), err: %w", n, msgLen, err)
 	}
 	copy(buf[:5], typeVersionLen)
 	return extractSNI(buf)
