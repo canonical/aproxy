@@ -86,11 +86,11 @@ func PrereadSNI(conn *PrereadConn) (_ string, err error) {
 	}()
 	typeVersionLen := make([]byte, 5)
 	n, err := conn.Read(typeVersionLen)
-	if n != 5 {
-		return "", errors.New("too short")
-	}
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read TLS record layer header: %w", err)
+	}
+	if n != 5 {
+		return "", fmt.Errorf("failed to read TLS record layer header: too short, less than 5 bytes (%d)", n)
 	}
 	if typeVersionLen[0] != 22 {
 		return "", errors.New("not a TCP handshake")
@@ -99,7 +99,7 @@ func PrereadSNI(conn *PrereadConn) (_ string, err error) {
 	buf := make([]byte, msgLen+5)
 	n, err = conn.Read(buf[5:])
 	if n != int(msgLen) {
-		return "", errors.New("too short")
+		return "", fmt.Errorf("client hello too short (%d < %d)", n, msgLen)
 	}
 	if err != nil {
 		return "", err
