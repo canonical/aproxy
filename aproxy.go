@@ -97,7 +97,7 @@ func PrereadSNI(conn *PrereadConn) (_ string, err error) {
 	}
 	msgLen := binary.BigEndian.Uint16(typeVersionLen[3:])
 	buf := make([]byte, msgLen+5)
-	n, err = conn.Read(buf[5:])
+	n, err = io.ReadFull(conn, buf[5:])
 	if n != int(msgLen) {
 		return "", fmt.Errorf("client hello too short (%d < %d)", n, msgLen)
 	}
