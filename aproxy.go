@@ -84,27 +84,24 @@ func PrereadSNI(conn *PrereadConn) (_ string, err error) {
 			err = fmt.Errorf("failed to preread TLS client hello: %w", err)
 		}
 	}()
-	typeVersionLen := make([]byte, 5)
-	n, err := conn.Read(typeVersionLen)
-	if n != 5 {
-		return "", errors.New("too short")
-	}
+	recordHeader := make([]byte, 5)
+	n, err := io.ReadFull(conn, recordHeader)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read TLS record layer header: %w", err)
 	}
-	if typeVersionLen[0] != 22 {
+	if n != 5 {
+		return "", fmt.Errorf("failed to read TLS record layer header: too short, less than 5 bytes (%d)", n)
+	}
+	if recordHeader[0] != 22 {
 		return "", errors.New("not a TCP handshake")
 	}
-	msgLen := binary.BigEndian.Uint16(typeVersionLen[3:])
+	msgLen := binary.BigEndian.Uint16(recordHeader[3:])
 	buf := make([]byte, msgLen+5)
-	n, err = conn.Read(buf[5:])
+	n, err = io.ReadFull(conn, buf[5:])
 	if n != int(msgLen) {
-		return "", errors.New("too short")
+		return "", fmt.Errorf("client hello too short (%d < %d), err: %w", n, msgLen, err)
 	}
-	if err != nil {
-		return "", err
-	}
-	copy(buf[:5], typeVersionLen)
+	copy(buf[:5], recordHeader)
 	return extractSNI(buf)
 }
 
