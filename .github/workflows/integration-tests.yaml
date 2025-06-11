@@ -27,11 +27,11 @@ jobs:
       - name: Install aproxy Snap
         run: |
           sudo snap install --dangerous aproxy_*_amd64.snap
-      
+
       - name: Show aproxy Configuration
         run: |
           sudo snap get aproxy
-      
+
       - name: Configure aproxy
         run: |
           sudo nft -f - << EOF
