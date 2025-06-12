@@ -338,7 +338,7 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 }
 
 // HandleConn manages the incoming connections.
-func HandleConn(conn net.Conn, proxy string, transport string) {
+func HandleConn(conn net.Conn, proxy string) {
 	defer conn.Close()
 	logger := slog.With("src", conn.RemoteAddr())
 	dst, err := GetOriginalDst(conn.(*net.TCPConn))
@@ -348,13 +348,8 @@ func HandleConn(conn net.Conn, proxy string, transport string) {
 	}
 	logger = logger.With("original_dst", dst)
 	consigned := NewPrereadConn(conn)
-	// If transport is empty, revert back to the old behaviour
-	// and handle the protocol based on the destination port
-	if transport == "" {
-		transport = strconv.Itoa(dst.Port)
-	}
-	switch transport {
-	case "443", "https":
+	switch dst.Port {
+	case 443:
 		sni, err := PrereadSNI(consigned)
 		if err != nil {
 			logger.Error("failed to preread SNI from connection", "error", err)
@@ -370,7 +365,7 @@ func HandleConn(conn net.Conn, proxy string, transport string) {
 			logger.Info("relay TLS connection to proxy")
 			RelayTCP(consigned, proxyConn, logger)
 		}
-	case "80", "11371", "http", "hkp":
+	case 80, 11371:
 		host, err := PrereadHttpHost(consigned)
 		if err != nil {
 			logger.Error("failed to preread HTTP host from connection", "error", err)
@@ -387,8 +382,8 @@ func HandleConn(conn net.Conn, proxy string, transport string) {
 		}
 		logger.Info("relay HTTP connection to proxy")
 		RelayHTTP(consigned, proxyConn, logger)
-	case "tcp":
-		logger = logger.With("host", "None (tcp)")
+	default:
+		logger = logger.With("host", "TCP4:" + dst.IP.String() + ":" + strconv.Itoa(dst.Port))
 		proxyConn, err := DialProxy(proxy)
 		if err != nil {
 			logger.Error("failed to connect to tcp proxy", "error", err)
@@ -396,16 +391,12 @@ func HandleConn(conn net.Conn, proxy string, transport string) {
 		}
 		logger.Info("relay TCP connection to proxy")
 		RelayTCP(consigned, proxyConn, logger)
-	default:
-		logger.Error(fmt.Sprintf("unknown destination port: %d", dst.Port))
-		return
 	}
 }
 
 func main() {
 	proxyFlag := flag.String("proxy", "", "upstream proxy address in the 'host:port' format")
 	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
-	transportFlag := flag.String("transport", "", "the type of transport protocol used (tcp, hkp, http or https)")
 	flag.Parse()
 	listenAddr := *listenFlag
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -420,7 +411,6 @@ func main() {
 	if proxy == "" {
 		log.Fatalf("no upstream proxy specified")
 	}
-	transport := *transportFlag
 	slog.Info(fmt.Sprintf("start forwarding to proxy %s", proxy))
 	go func() {
 		for {
@@ -429,7 +419,7 @@ func main() {
 				slog.Error("failed to accept connection", "error", err)
 				continue
 			}
-			go HandleConn(conn, proxy, transport)
+			go HandleConn(conn, proxy)
 		}
 	}()
 	<-ctx.Done()
