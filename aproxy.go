@@ -383,7 +383,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		logger.Info("relay HTTP connection to proxy")
 		RelayHTTP(consigned, proxyConn, logger)
 	default:
-		logger = logger.With("host", "TCP4:" + dst.IP.String() + ":" + strconv.Itoa(dst.Port))
+		logger = logger.With("host", "TCP4:"+dst.IP.String()+":"+strconv.Itoa(dst.Port))
 		proxyConn, err := DialProxy(proxy)
 		if err != nil {
 			logger.Error("failed to connect to tcp proxy", "error", err)
