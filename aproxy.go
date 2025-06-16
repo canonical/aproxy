@@ -16,7 +16,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,7 +23,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "0.2.3"
+var version = "0.2.4"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.
@@ -383,8 +382,8 @@ func HandleConn(conn net.Conn, proxy string) {
 		logger.Info("relay HTTP connection to proxy")
 		RelayHTTP(consigned, proxyConn, logger)
 	default:
-		logger = logger.With("host", "TCP4:"+dst.IP.String()+":"+strconv.Itoa(dst.Port))
-		proxyConn, err := DialProxy(proxy)
+		logger = logger.With("host", fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
+		proxyConn, err := DialProxyConnect(proxy, dst.IP.String())
 		if err != nil {
 			logger.Error("failed to connect to tcp proxy", "error", err)
 			return
