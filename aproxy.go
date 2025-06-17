@@ -221,6 +221,7 @@ func DialProxy(proxy string) (net.Conn, error) {
 }
 
 // DialProxyConnect dials the TCP connection and finishes the HTTP CONNECT handshake with the proxy.
+// dst: HOST:PORT or IP:PORT
 func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
 	conn, err := DialProxy(proxy)
 	if err != nil {
@@ -383,7 +384,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		RelayHTTP(consigned, proxyConn, logger)
 	default:
 		logger = logger.With("host", fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
-		proxyConn, err := DialProxyConnect(proxy, dst.IP.String())
+		proxyConn, err := DialProxyConnect(proxy, fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
 		if err != nil {
 			logger.Error("failed to connect to tcp proxy", "error", err)
 			return
