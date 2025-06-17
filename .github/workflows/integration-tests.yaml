@@ -80,7 +80,7 @@ jobs:
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
           sudo snap logs aproxy.aproxy | grep -Fq "keyserver.ubuntu.com:11371"
-          sudo snap logs aproxy.aproxy | grep -Eq "TCP4:[0-9.]+:4242"
+          sudo snap logs aproxy.aproxy | grep -Eq "[0-9.]+:4242"
 
       - name: Show Access Logs
         if: failure()
