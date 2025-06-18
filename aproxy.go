@@ -23,7 +23,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "0.2.3"
+var version = "0.2.4"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.
@@ -221,6 +221,7 @@ func DialProxy(proxy string) (net.Conn, error) {
 }
 
 // DialProxyConnect dials the TCP connection and finishes the HTTP CONNECT handshake with the proxy.
+// dst: HOST:PORT or IP:PORT
 func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
 	conn, err := DialProxy(proxy)
 	if err != nil {
@@ -382,13 +383,19 @@ func HandleConn(conn net.Conn, proxy string) {
 		logger.Info("relay HTTP connection to proxy")
 		RelayHTTP(consigned, proxyConn, logger)
 	default:
-		logger.Error(fmt.Sprintf("unknown destination port: %d", dst.Port))
-		return
+		logger = logger.With("host", fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
+		proxyConn, err := DialProxyConnect(proxy, fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
+		if err != nil {
+			logger.Error("failed to connect to tcp proxy", "error", err)
+			return
+		}
+		logger.Info("relay TCP connection to proxy")
+		RelayTCP(consigned, proxyConn, logger)
 	}
 }
 
 func main() {
-	proxyFlag := flag.String("proxy", "", "upstream HTTP proxy address in the 'host:port' format")
+	proxyFlag := flag.String("proxy", "", "upstream proxy address in the 'host:port' format")
 	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
 	flag.Parse()
 	listenAddr := *listenFlag
@@ -402,7 +409,7 @@ func main() {
 	slog.Info(fmt.Sprintf("start listening on %s", listenAddr))
 	proxy := *proxyFlag
 	if proxy == "" {
-		log.Fatalf("no upstearm proxy specified")
+		log.Fatalf("no upstream proxy specified")
 	}
 	slog.Info(fmt.Sprintf("start forwarding to proxy %s", proxy))
 	go func() {
