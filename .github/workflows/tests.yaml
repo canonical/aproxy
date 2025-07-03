@@ -17,7 +17,7 @@ jobs:
           sudo snap refresh aproxy
           
           sudo nft -f - << EOF
-          define default-ip = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
+          define default-ipv4 = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
           define private-ips = { 10.0.0.0/8, 127.0.0.1/8, 172.16.0.0/12, 192.168.0.0/16 }
           define aproxy-port = $(sudo snap get aproxy listen | cut -d ":" -f 2)
           table ip aproxy
