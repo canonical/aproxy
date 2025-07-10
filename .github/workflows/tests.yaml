@@ -36,6 +36,8 @@ jobs:
       - name: test SSH
         run: |
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          echo '${{ secrets.GITLAB_SSH_ID_ED25519 }}' > ~/.ssh/id_ed25519
+          cd ~
           git clone git@gitlab.com:gitlab-org/gitlab.git
       - name: show aproxy logs
         if: always()
