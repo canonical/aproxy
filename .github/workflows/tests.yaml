@@ -10,7 +10,7 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    runs-on: [ self-hosted, linux, edge ]
+    runs-on: [ self-hosted, amd64, edge ]
     steps:
       - name: ssh_config.d
         run: |
