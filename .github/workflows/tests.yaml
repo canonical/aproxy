@@ -39,7 +39,7 @@ jobs:
           echo '${{ secrets.GITLAB_SSH_ID_ED25519 }}' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           cd ~
-          git clone git@gitlab.com:gitlab-org/gitlab-shell.git
+          git clone --progress --verbose git@gitlab.com:gitlab-org/gitlab-shell.git
       - name: show aproxy logs
         if: always()
         run: |
