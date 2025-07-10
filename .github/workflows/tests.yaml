@@ -10,104 +10,33 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    runs-on: [ self-hosted, linux, x64, jammy, large ]
+    runs-on: [ self-hosted, linux, x64, edge ]
     steps:
-      - name: Configure aproxy
+      - name: ssh_config.d
         run: |
-          sudo snap refresh aproxy
-          
-          sudo nft -f - << EOF
-          define default-ipv4 = $(ip route get $(ip route show 0.0.0.0/0 | grep -oP 'via \K\S+') | grep -oP 'src \K\S+')
-          define aproxy-port = $(sudo snap get aproxy listen | cut -d ":" -f 2)
-          table ip aproxy
-          flush table ip aproxy
-          table ip aproxy {
-              set exclude {
-                  type ipv4_addr;
-                  flags interval; auto-merge;
-                  elements = { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 }
-              }
-              chain prerouting {
-                  type nat hook prerouting priority dstnat; policy accept;
-                  ip daddr != @exclude tcp dport { 0-3127, 3129-65535 } counter dnat to \$default-ipv4:\$aproxy-port
-              }
-              chain output {
-                  type nat hook output priority -100; policy accept;
-                  ip daddr != @exclude tcp dport { 0-3127, 3129-65535 } counter dnat to \$default-ipv4:\$aproxy-port
-              }
-          }
-          EOF
-      - name: Hostname is set to "github-runner"
-        run: sudo hostnamectl hostname | grep github-runner
-      # Below is a series of simple tests to assess the functionality of the newly spawned runner.
-      - name: Echo hello world
-        run: echo "hello world"
-      - name: File permission for /usr/local/bin
-        run: ls -ld /usr/local/bin | grep drwxrwxrwx
-      - name: Test file permission for /usr/local/bin
-        run: touch /usr/local/bin/test_file
-      # "Install microk8s" step will test if the proxies settings are correct.
-      - name: Proxy set in /etc/environment
-        run: cat /etc/environment
-      # "Update apt in python docker container" step will test docker default proxy settings due to
-      # pulling the python image.
-      - name: Proxy set in docker daemon
+          ls -lah /etc/ssh/ssh_config.d/
+      - name: check aproxy
         run: |
-          [[ -z "${http_proxy}" && -z "${HTTP_PROXY}" ]] \
-            || sudo cat /etc/systemd/system/docker.service.d/http-proxy.conf | grep HTTP_PROXY
-      # "Update apt in python docker container" step will test docker client default proxy settings.
-      - name: Proxy set in docker client
+          sudo snap get aproxy
+      - name: check nftables
         run: |
-          [[ -z "${http_proxy}" && -z "${HTTP_PROXY}" ]] \
-            || cat /home/ubuntu/.docker/config.json | grep httpProxy
-      - name: test network connectivity
+          sudo nft list ruleset
+      - name: test TCP connectivity
+        run: |
+          echo hello | nc -q 0 tcpbin.com 4242
+      - name: test HTTP
         run: |
           timeout 60 curl --noproxy "*" http://example.com -svS -o /dev/null
-          timeout 60 curl --noproxy "*" https://example.com -svS -o /dev/null
-      - name: test aproxy logs
+      - name: test HTTPS
         run: |
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
-          sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
-      - name: Install microk8s
-        run: sudo snap install microk8s --classic
-      - name: Wait for microk8s
-        timeout-minutes: 10
-        run: microk8s status --wait-ready
-      - name: Deploy nginx for testing
-        run: microk8s kubectl create deployment nginx --image=nginx
-      - name: Wait for nginx to be ready
-        run: microk8s kubectl rollout status deployment/nginx --timeout=30m
-      - name: Update apt in python docker container
-        run: docker run python:3.10-slim apt-get update
-      - name: Docker version
-        run: docker version
-      - name: Check python alias for python3
-        run: python --version
-      - name: pip version
-        run: python3 -m pip --version
-      - name: npm version
-        run: npm --version
-      - name: shellcheck version
-        run: shellcheck --version
-      - name: jq version
-        run: jq --version
-      - name: yq version
-        run: yq --version
-      - name: apt update
-        run: sudo apt-get update -y
-      # Use pipx for 24.04 noble, check-jsonschema breaks OS system packages.
-      - name: install pipx
-        run: sudo apt-get install -y pipx
-      - name: install check-jsonschema
-        run: python3 -m pip install check-jsonschema || pipx install check-jsonschema
-      - name: unzip version
-        run: unzip -v
-      - name: gh version
-        run: gh --version
-      # `check-jsonschema` is installed using pip. The directory `~/.local/bin` needs to be added to PATH.
-      # ~/.local/bin is added to path runner env through in scripts/env.j2
-      - name: test check-jsonschema
-        run: check-jsonschema --version
+          timeout 60 curl --noproxy "*" https://example.com -svS -o /dev/null
+      - name: test HKP
+        run: |
+          timeout 60 gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+      - name: test SSH
+        run: |
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git clone git@gitlab.com:gitlab-org/gitlab.git
       - name: show aproxy logs
         if: always()
         run: |
