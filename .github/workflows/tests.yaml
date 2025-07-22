@@ -22,7 +22,7 @@ jobs:
           
           sudo mkdir -p ${MIRROR_CONFIG}
           sudo chown $USER ${MIRROR_CONFIG}
-          cat << EOF > ${MIRROR_CONFIG}/hosts.toml
+          cat << EOF | sudo tee ${MIRROR_CONFIG}/hosts.toml
           [host."$DOCKERHUB_MIRROR"]
           capabilities = ["pull", "resolve"]
           EOF
