@@ -12,6 +12,23 @@ jobs:
     name: End-to-End Test Run
     runs-on: [self-hosted, linux, amd64, noble, medium]
     steps:
+      - name: Install microk8s
+        run: |
+          sudo snap install microk8s --channel=1.32-strict/stable
+          
+          sleep 5          
+          
+          MIRROR_CONFIG=/var/snap/microk8s/current/args/certs.d/docker.io/
+          
+          sudo mkdir -p ${MIRROR_CONFIG}
+          sudo chown $USER ${MIRROR_CONFIG}
+          cat << EOF > ${MIRROR_CONFIG}/hosts.toml
+          [host."$DOCKERHUB_MIRROR"]
+          capabilities = ["pull", "resolve"]
+          EOF
+          
+          sudo snap stop microk8s
+          sudo snap start microk8s
       - name: Tmate debugging session (self-hosted)
         uses: canonical/action-tmate@main
         timeout-minutes: 60
