@@ -13,7 +13,9 @@ jobs:
     runs-on: [self-hosted, x64]
     steps:
       - name: install microk8s
-        run: sudo snap install microk8s --channel=1.32-strict/stable
+        run: |
+          sudo snap install microk8s --channel=1.32-strict/stable
+          sudo microk8s status -w
 
       - name: update microk8s containerd config
         run: |
