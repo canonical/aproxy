@@ -10,7 +10,7 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    runs-on: [self-hosted, x64. noble]
+    runs-on: [self-hosted, linux, amd64, noble, medium]
     steps:
       - name: Tmate debugging session (self-hosted)
         uses: canonical/action-tmate@main
