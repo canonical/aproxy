@@ -10,8 +10,36 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    runs-on: [self-hosted, linux, amd64, noble, medium]
+    strategy:
+      matrix:
+        runs-on:
+          - self-hosted-linux-amd64-jammy-large
+          - self-hosted-linux-arm64-jammy-large
+    runs-on: [self-hosted, ${{ matrix.runs-on }}]
     steps:
-      - name: Tmate debugging session (self-hosted)
-        uses: canonical/action-tmate@main
-        timeout-minutes: 60
+      - name: Test HTTP
+        run: |
+          timeout 60 curl --noproxy "*" http://example.com -svS -o /dev/null
+
+      - name: Test HTTPS
+        run: |
+          timeout 60 curl --noproxy "*" https://example.com -svS -o /dev/null
+
+      - name: Test HKP
+        run: |
+          timeout 60 gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+
+      - name: Test SSH
+        run: |
+          printf "" | timeout 60 nc github.com 22 | head -n 1 | grep SSH
+
+      - name: Test SSH (Launchpad)
+        run: printf "" | timeout 60 nc git.launchpad.net 22 | head -n 1 | grep SSH
+
+      - name: Test Git protocol
+        run: timeout 120 git clone git://git.launchpad.net/ubuntu/+source/bash
+
+      - name: Show Access Logs
+        if: always()
+        run: |
+          sudo snap logs aproxy.aproxy -n=all
