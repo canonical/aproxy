@@ -42,7 +42,7 @@ jobs:
         run: printf "" | timeout 60 nc git.launchpad.net 22 | head -n 1 | grep SSH
 
       - name: Test Git protocol
-        run: timeout 120 git clone git://git.launchpad.net/ubuntu/+source/bash
+        run: timeout 120 git clone git://git.launchpad.net/ubuntu/+source/bash -vvv
 
       - name: Show Access Logs
         if: always()
