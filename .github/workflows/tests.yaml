@@ -20,8 +20,8 @@ jobs:
       - name: Revert Configuration
         run: |
           cat /etc/ssh/ssh_config.d/git.launchpad.net.conf /etc/ssh/ssh_config.d/github.com.conf /usr/local/bin/gitproxy
-          rm -rf /etc/ssh/ssh_config.d/git.launchpad.net.conf /etc/ssh/ssh_config.d/github.com.conf /usr/local/bin/gitproxy
-          git config --global --unset core.gitproxy
+          sudo rm -rf /etc/ssh/ssh_config.d/git.launchpad.net.conf /etc/ssh/ssh_config.d/github.com.conf /usr/local/bin/gitproxy
+          sudo git config --global --unset core.gitproxy
       - name: Test HTTP
         run: |
           timeout 60 curl --noproxy "*" http://example.com -svS -o /dev/null
