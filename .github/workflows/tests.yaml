@@ -18,12 +18,6 @@ jobs:
           - self-hosted-linux-s390x-noble-edge
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - name: Revert Configuration
-        run: |
-          cat /etc/ssh/ssh_config.d/git.launchpad.net.conf /etc/ssh/ssh_config.d/github.com.conf /usr/local/bin/gitproxy
-          sudo rm -rf /etc/ssh/ssh_config.d/git.launchpad.net.conf /etc/ssh/ssh_config.d/github.com.conf /usr/local/bin/gitproxy
-          git config --global --unset core.gitproxy
-
       - name: Test repo-compliance
         run: |
           curl -vvv --noproxy '*' --connect-timeout 60 https://repo-policy-compliance.canonical.com/health
