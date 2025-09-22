@@ -385,6 +385,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		logger.Info("relay HTTP connection to proxy")
 		RelayHTTP(consigned, proxyConn, logger)
 	default:
+		consigned.EndPreread()
 		logger = logger.With("host", fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
 		proxyConn, err := DialProxyConnect(proxy, fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
 		if err != nil {
