@@ -75,6 +75,10 @@ jobs:
           sudo apt install -y socat
           timeout 60 socat /dev/null TCP4:tcpbin.com:4242
 
+      - name: Test Header
+        run: |
+          timeout 60 curl --noproxy "*" http://httpbin.org/anything -svS
+
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
