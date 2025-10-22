@@ -10,8 +10,6 @@ jobs:
     runs-on: [ self-hosted, linux, x64, jammy, large ]
 
     steps:
-      - run: sudo nft add element ip aproxy exclude { 1.1.199.1 }
-      - run: sudo nft list ruleset
       - uses: actions/checkout@v2
 
       - name: Build aproxy Snap
