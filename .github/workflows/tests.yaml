@@ -10,7 +10,7 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    runs-on: [self-hosted]
+    runs-on: self-hosted-linux-amd64-jammy-large
     steps:
       - name: Test certification.canonical.com
         run: |
