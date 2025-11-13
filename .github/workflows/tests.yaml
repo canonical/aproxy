@@ -10,13 +10,7 @@ on:
 jobs:
   e2e-test:
     name: End-to-End Test Run
-    strategy:
-      matrix:
-        runs-on:
-          - self-hosted-linux-amd64-noble-large
-          - self-hosted-linux-arm64-noble-large
-          - self-hosted-linux-s390x-noble-edge
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: [self-hosted]
     steps:
       - name: Test certification.canonical.com
         run: |
