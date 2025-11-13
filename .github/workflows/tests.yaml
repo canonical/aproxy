@@ -13,11 +13,15 @@ jobs:
     strategy:
       matrix:
         runs-on:
-          - self-hosted-linux-amd64-jammy-large
-          - self-hosted-linux-arm64-jammy-large
+          - self-hosted-linux-amd64-noble-large
+          - self-hosted-linux-arm64-noble-large
           - self-hosted-linux-s390x-noble-edge
     runs-on: ${{ matrix.runs-on }}
     steps:
+      - name: Test certification.canonical.com
+        run: |
+          curl -vvv -x http://egress.ps7.internal:3128 https://certification.canonical.com
+  
       - name: Test repo-compliance
         run: |
           curl -vvv --noproxy '*' --connect-timeout 60 https://repo-policy-compliance.canonical.com/health
