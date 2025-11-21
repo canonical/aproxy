@@ -222,7 +222,7 @@ func DialProxy(proxy string) (net.Conn, error) {
 
 // DialProxyConnect dials the TCP connection and finishes the HTTP CONNECT handshake with the proxy.
 // dst: HOST:PORT or IP:PORT
-func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
+func DialProxyConnect(proxy string, src, dst string) (net.Conn, error) {
 	conn, err := DialProxy(proxy)
 	if err != nil {
 		return nil, err
@@ -236,7 +236,8 @@ func DialProxyConnect(proxy string, dst string) (net.Conn, error) {
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header: map[string][]string{
-			"User-Agent": {fmt.Sprintf("aproxy/%s", version)},
+			"User-Agent":      {fmt.Sprintf("aproxy/%s", version)},
+			"X-Forwarded-For": {src},
 		},
 		Host: dst,
 	}
@@ -289,7 +290,7 @@ func RelayTCP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Log
 
 // RelayHTTP relays a single HTTP request and response between a local connection and a proxy.
 // It modifies the Connection header to "close" in both the request and response.
-func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Logger) {
+func RelayHTTP(conn io.ReadWriter, src string, proxyConn io.ReadWriteCloser, logger *slog.Logger) {
 	defer proxyConn.Close()
 	req, err := http.ReadRequest(bufio.NewReader(conn))
 	if err != nil {
@@ -302,6 +303,10 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 		req.Header.Set("User-Agent", "")
 	}
 	req.Header.Set("Connection", "close")
+	// For now strip and replace the X-Forwarded-For header from incoming requests.
+	// We cannot trust X-Forwarded-For on arbitrary requests for security reasons.
+	// In the future, consider conditionally trusting X-Forwarded-For from known clients.
+	req.Header.Set("X-Forwarded-For", src)
 	if req.Proto == "HTTP/1.0" {
 		// no matter what the request protocol is, Go enforces a minimum version of HTTP/1.1
 		// this causes problems for HTTP/1.0 only clients like GPG (HKP)
@@ -349,6 +354,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		return
 	}
 	logger = logger.With("original_dst", dst)
+	src, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	consigned := NewPrereadConn(conn)
 	switch dst.Port {
 	case 443:
@@ -359,7 +365,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		} else {
 			host := fmt.Sprintf("%s:%d", sni, dst.Port)
 			logger = logger.With("host", host)
-			proxyConn, err := DialProxyConnect(proxy, host)
+			proxyConn, err := DialProxyConnect(proxy, src, host)
 			if err != nil {
 				logger.Error("failed to connect to http proxy", "error", err)
 				return
@@ -383,11 +389,11 @@ func HandleConn(conn net.Conn, proxy string) {
 			return
 		}
 		logger.Info("relay HTTP connection to proxy")
-		RelayHTTP(consigned, proxyConn, logger)
+		RelayHTTP(consigned, src, proxyConn, logger)
 	default:
 		consigned.EndPreread()
 		logger = logger.With("host", fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
-		proxyConn, err := DialProxyConnect(proxy, fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
+		proxyConn, err := DialProxyConnect(proxy, src, fmt.Sprintf("%s:%d", dst.IP.String(), dst.Port))
 		if err != nil {
 			logger.Error("failed to connect to tcp proxy", "error", err)
 			return
