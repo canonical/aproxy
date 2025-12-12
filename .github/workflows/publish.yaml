@@ -25,7 +25,7 @@ jobs:
 
       - name: Publish Aproxy
         env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPSTORE_TOKEN }}
         run: |
           for snap in aproxy*.snap
           do
