@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -357,7 +358,10 @@ func HandleConn(conn net.Conn, proxy string) {
 			logger.Error("failed to preread SNI from connection", "error", err)
 			return
 		} else {
-			host := fmt.Sprintf("%s:%d", sni, dst.Port)
+			if sni == "" {
+				sni = dst.IP.String()
+			}
+			host := net.JoinHostPort(sni, strconv.Itoa(dst.Port))
 			logger = logger.With("host", host)
 			proxyConn, err := DialProxyConnect(proxy, host)
 			if err != nil {
