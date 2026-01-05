@@ -78,8 +78,8 @@ jobs:
       - name: Test No SNI
         run: |
           HOST_IP=$(dig +short ubuntu.com | head -n1)
-          curl "https://$HOST_IP:443" -v || :
-          sudo snap logs aproxy.aproxy | grep -Fq host=\"$HOST_IP:443\"
+          timeout 60 curl "https://$HOST_IP:443" -v || :
+          sudo snap logs aproxy.aproxy | grep -Fq host=$HOST_IP:443
 
       - name: Test Access Logs
         run: |
