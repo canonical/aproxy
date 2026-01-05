@@ -357,20 +357,20 @@ func HandleConn(conn net.Conn, proxy string) {
 		if err != nil {
 			logger.Error("failed to preread SNI from connection", "error", err)
 			return
-		} else {
-			if sni == "" {
-				sni = dst.IP.String()
-			}
-			host := net.JoinHostPort(sni, strconv.Itoa(dst.Port))
-			logger = logger.With("host", host)
-			proxyConn, err := DialProxyConnect(proxy, host)
-			if err != nil {
-				logger.Error("failed to connect to http proxy", "error", err)
-				return
-			}
-			logger.Info("relay TLS connection to proxy")
-			RelayTCP(consigned, proxyConn, logger)
 		}
+		hostname := sni
+		if hostname == "" {
+			hostname = dst.IP.String()
+		}
+		host := net.JoinHostPort(hostname, strconv.Itoa(dst.Port))
+		logger = logger.With("host", host)
+		proxyConn, err := DialProxyConnect(proxy, host)
+		if err != nil {
+			logger.Error("failed to connect to http proxy", "error", err)
+			return
+		}
+		logger.Info("relay TLS connection to proxy")
+		RelayTCP(consigned, proxyConn, logger)
 	case 80, 11371:
 		host, err := PrereadHttpHost(consigned)
 		if err != nil {
