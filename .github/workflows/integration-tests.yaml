@@ -75,6 +75,12 @@ jobs:
           sudo apt install -y socat
           timeout 60 socat /dev/null TCP4:tcpbin.com:4242
 
+      - name: Test No SNI
+        run: |
+          HOST_IP=$(dig +short ubuntu.com | head -n1)
+          timeout 60 curl "https://$HOST_IP:443" -v || :
+          sudo snap logs aproxy.aproxy | grep -Fq host=$HOST_IP:443
+
       - name: Test Access Logs
         run: |
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
