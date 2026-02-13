@@ -1,27 +1,45 @@
-name: Tests
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: Run End-to-End test
 
 on:
   pull_request:
   workflow_call:
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-
+  e2e-test:
+    name: End-to-End Test Run
+    runs-on: self-hosted-linux-amd64-jammy-large
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Ensure No Formatting Changes
+      - name: Test certification.canonical.com
         run: |
-          go fmt ./...
-          git diff --exit-code
-
-      - name: Build and Test
+          curl -vvv -x http://egress.ps7.internal:3128 https://certification.canonical.com
+  
+      - name: Test repo-compliance
         run: |
-          go test -race ./...
+          curl -vvv --noproxy '*' --connect-timeout 60 https://repo-policy-compliance.canonical.com/health
+
+      - name: Test HTTP
+        run: |
+          timeout 60 curl --noproxy "*" http://example.com -svS -o /dev/null
+
+      - name: Test HTTPS
+        run: |
+          timeout 60 curl --noproxy "*" https://example.com -svS -o /dev/null
+
+      - name: Test HKP
+        run: |
+          timeout 60 gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
+
+      - name: Test SSH
+        run: |
+          printf "" | timeout 60 nc github.com 22 | head -n 1 | grep SSH
+
+      - name: Test SSH (Launchpad)
+        run: printf "" | timeout 60 nc git.launchpad.net 22 | head -n 1 | grep SSH
+
+      - name: Show Access Logs
+        if: always()
+        run: |
+          sudo snap logs aproxy.aproxy -n=all

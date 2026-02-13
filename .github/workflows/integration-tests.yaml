@@ -43,12 +43,12 @@ jobs:
           table ip aproxy {
                   chain prerouting {
                           type nat hook prerouting priority dstnat; policy accept;
-                          ip daddr != \$private-ips tcp dport { 80, 443, 11371, 4242 } counter dnat to \$default-ip:\$aproxy-port
+                          ct state new ip daddr != \$private-ips tcp dport { 80, 443, 11371, 4242, 22 } counter dnat to \$default-ip:\$aproxy-port
                   }
 
                   chain output {
                           type nat hook output priority -100; policy accept;
-                          ip daddr != \$private-ips tcp dport { 80, 443, 11371, 4242 } counter dnat to \$default-ip:\$aproxy-port
+                          ct state new ip daddr != \$private-ips tcp dport { 80, 443, 11371, 4242, 22 } counter dnat to \$default-ip:\$aproxy-port
                   }
           }
           EOF
@@ -70,6 +70,10 @@ jobs:
         run: |
           timeout 60 gpg -vvv --keyserver hkp://keyserver.ubuntu.com --recv-keys E1DE584A8CCA52DC29550F18ABAC58F075A17EFA
 
+      - name: Test SSH
+        run: |
+          printf "" | timeout 60 nc github.com 22 | head -n 1 | grep SSH
+      
       - name: Test TCP4
         run: |
           sudo apt install -y socat
@@ -86,10 +90,11 @@ jobs:
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:80"
           sudo snap logs aproxy.aproxy | grep -Fq "example.com:443"
           sudo snap logs aproxy.aproxy | grep -Fq "keyserver.ubuntu.com:11371"
+          sudo snap logs aproxy.aproxy | grep -Fq "[0-9.]+:22"
           sudo snap logs aproxy.aproxy | grep -Eq "[0-9.]+:4242"
 
       - name: Show Access Logs
-        if: failure()
+        if: always()
         run: |
           sudo snap logs aproxy.aproxy -n=all
 
