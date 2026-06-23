@@ -1,8 +1,12 @@
 name: Release
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -23,11 +27,7 @@ jobs:
       - name: Create tag
         id: tag
         run: |
-          LAST_TAG=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --abbrev=0 2>/dev/null || echo "v0.0.0")
-          VERSION=${LAST_TAG#v}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          PATCH=$((PATCH + 1))
-          TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          TAG="${{ inputs.tag }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
