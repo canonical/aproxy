@@ -2,7 +2,6 @@ name: Tests
 
 on:
   pull_request:
-  workflow_call:
 
 jobs:
   test:
@@ -21,6 +20,14 @@ jobs:
         run: |
           go fmt ./...
           git diff --exit-code
+
+      - name: Check Version Sync
+        run: |
+          bash .github/scripts/check-version-sync.sh
+
+      - name: Check Version Bump For Go Changes
+        run: |
+          bash .github/scripts/check-go-version-bump.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
       - name: Build and Test
         run: |
