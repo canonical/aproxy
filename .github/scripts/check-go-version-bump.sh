@@ -11,9 +11,9 @@ fi
 
 git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
 
-GO_CHANGED="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '**/*.go' || true)"
+GO_CHANGED="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '**/*.go' 'go.mod' 'go.sum' || true)"
 if [[ -z "$GO_CHANGED" ]]; then
-  echo "No Go files changed; skipping version bump check."
+  echo "No Go files or dependencies changed; skipping version bump check."
   exit 0
 fi
 
