@@ -1,4 +1,4 @@
-module aproxy
+module github.com/canonical/aproxy
 
 go 1.24.0
 
