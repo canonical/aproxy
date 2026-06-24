@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-var version = "1.0.1"
+var version = "0.2.5"
 
 // PrereadConn is a wrapper around net.Conn that supports pre-reading from the underlying connection.
 // Any Read before the EndPreread can be undone and read again by calling the EndPreread function.

@@ -1,8 +1,7 @@
 name: Release
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,6 +32,10 @@ jobs:
             exit 1
           fi
           TAG="v${GO_VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Please bump the version in aproxy.go and snap/snapcraft.yaml before releasing."
+            exit 1
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"

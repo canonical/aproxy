@@ -25,10 +25,6 @@ jobs:
         run: |
           bash .github/scripts/check-version-sync.sh
 
-      - name: Check Version Bump For Go Changes
-        run: |
-          bash .github/scripts/check-go-version-bump.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
-
       - name: Build and Test
         run: |
           go test -race ./...
