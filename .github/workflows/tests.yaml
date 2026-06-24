@@ -22,6 +22,10 @@ jobs:
           go fmt ./...
           git diff --exit-code
 
+      - name: Check Version Sync
+        run: |
+          bash .github/scripts/check-version-sync.sh
+
       - name: Build and Test
         run: |
           go test -race ./...
