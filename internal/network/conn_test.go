@@ -1,4 +1,4 @@
-package conn
+package network
 
 import (
 	"bytes"
@@ -1100,7 +1100,7 @@ func TestNewConnDefaults(t *testing.T) {
 	if conn.prereadCursor != 0 || conn.prereadBuf != nil {
 		t.Fatal("preread state must start empty")
 	}
-	if conn.TCPConn != local {
+	if conn.Conn != local {
 		t.Fatal("TCPConn not wired through")
 	}
 }
