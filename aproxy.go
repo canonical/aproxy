@@ -341,7 +341,7 @@ func RelayHTTP(conn io.ReadWriter, proxyConn io.ReadWriteCloser, logger *slog.Lo
 }
 
 // HandleConn manages the incoming connections.
-func HandleConn(conn net.Conn, proxy string) {
+func HandleConn(conn net.Conn, proxy string, useSNI bool) {
 	defer conn.Close()
 	logger := slog.With("src", conn.RemoteAddr())
 	dst, err := GetOriginalDst(conn.(*net.TCPConn))
@@ -351,8 +351,8 @@ func HandleConn(conn net.Conn, proxy string) {
 	}
 	logger = logger.With("original_dst", dst)
 	consigned := NewPrereadConn(conn)
-	switch dst.Port {
-	case 443:
+	switch {
+	case dst.Port == 443 && useSNI:
 		sni, err := PrereadSNI(consigned)
 		if err != nil {
 			logger.Error("failed to preread SNI from connection", "error", err)
@@ -371,7 +371,7 @@ func HandleConn(conn net.Conn, proxy string) {
 		}
 		logger.Info("relay TLS connection to proxy")
 		RelayTCP(consigned, proxyConn, logger)
-	case 80, 11371:
+	case dst.Port == 80 || dst.Port == 11371:
 		host, err := PrereadHttpHost(consigned)
 		if err != nil {
 			logger.Error("failed to preread HTTP host from connection", "error", err)
@@ -404,6 +404,7 @@ func HandleConn(conn net.Conn, proxy string) {
 func main() {
 	proxyFlag := flag.String("proxy", "", "upstream proxy address in the 'host:port' format")
 	listenFlag := flag.String("listen", ":8443", "the address and port on which the server will listen")
+	useSNIFlag := flag.Bool("use-sni", true, "preread TLS SNI on port 443; if false, CONNECT to the original destination IP:port")
 	flag.Parse()
 	listenAddr := *listenFlag
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -426,7 +427,7 @@ func main() {
 				slog.Error("failed to accept connection", "error", err)
 				continue
 			}
-			go HandleConn(conn, proxy)
+			go HandleConn(conn, proxy, *useSNIFlag)
 		}
 	}()
 	<-ctx.Done()
