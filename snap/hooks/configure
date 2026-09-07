@@ -34,7 +34,18 @@ fi
 
 validate_proxy "$proxy"
 
-echo "--proxy $proxy --listen $listen" > $SNAP_DATA/args
+args="--proxy $proxy --listen $listen"
+use_sni="$(snapctl get use-sni)"
+case "$use_sni" in
+    "") ;;
+    true|false) args="$args --use-sni=$use_sni" ;;
+    *)
+        echo "invalid use-sni: '$use_sni' (must be true or false)"
+        exit 1
+        ;;
+esac
+
+echo "$args" > $SNAP_DATA/args
 
 snapctl stop ${SNAP_NAME}.aproxy
 snapctl start ${SNAP_NAME}.aproxy --enable
