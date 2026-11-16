@@ -1,7 +1,7 @@
-// Package conn provides a TCP connection wrapper that adds preread functionality.
+// Package network provides a TCP connection wrapper that adds preread functionality.
 // During the preread phase, the read operations are recorded and can be reverted
 // using the Rewind function and the same data can be read again from the beginning.
-package conn
+package network
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ type ConnMetrics interface {
 }
 
 type Conn struct {
-	*net.TCPConn
+	net.Conn
 
 	prereadLimit  int
 	prereadEnd    atomic.Bool
@@ -43,7 +43,7 @@ type Conn struct {
 }
 
 func (c *Conn) read(b []byte) (n int, err error) {
-	n, err = c.TCPConn.Read(b)
+	n, err = c.Conn.Read(b)
 	if c.metrics != nil {
 		c.metrics.ObserveRead(n, err)
 	}
@@ -94,7 +94,7 @@ func (c *Conn) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (c *Conn) write(b []byte) (n int, err error) {
-	n, err = c.TCPConn.Write(b)
+	n, err = c.Conn.Write(b)
 	if c.metrics != nil {
 		c.metrics.ObserveWrite(n, err)
 	}
@@ -167,9 +167,9 @@ func WithMetrics(m ConnMetrics) Option {
 
 // New wraps the input TCP connection and returns a connection started in the
 // preread phase.
-func New(c *net.TCPConn, options ...Option) *Conn {
+func New(c net.Conn, options ...Option) *Conn {
 	conn := &Conn{
-		TCPConn:      c,
+		Conn:         c,
 		prereadLimit: defaultPrereadLimit,
 	}
 	for _, option := range options {
